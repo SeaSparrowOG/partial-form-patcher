@@ -4,50 +4,6 @@
 
 namespace Hooks::ArmorAddonPatcher
 {
-	std::string GetEditorID(const RE::TESForm* a_form)
-	{
-		using _GetFormEditorID = const char* (*)(std::uint32_t);
-		switch (a_form->GetFormType()) {
-		case RE::FormType::Keyword:
-		case RE::FormType::LocationRefType:
-		case RE::FormType::Action:
-		case RE::FormType::MenuIcon:
-		case RE::FormType::Global:
-		case RE::FormType::HeadPart:
-		case RE::FormType::Race:
-		case RE::FormType::Sound:
-		case RE::FormType::Script:
-		case RE::FormType::Navigation:
-		case RE::FormType::Cell:
-		case RE::FormType::WorldSpace:
-		case RE::FormType::Land:
-		case RE::FormType::NavMesh:
-		case RE::FormType::Dialogue:
-		case RE::FormType::Quest:
-		case RE::FormType::Idle:
-		case RE::FormType::AnimatedObject:
-		case RE::FormType::ImageAdapter:
-		case RE::FormType::VoiceType:
-		case RE::FormType::Ragdoll:
-		case RE::FormType::DefaultObject:
-		case RE::FormType::MusicType:
-		case RE::FormType::StoryManagerBranchNode:
-		case RE::FormType::StoryManagerQuestNode:
-		case RE::FormType::StoryManagerEventNode:
-		case RE::FormType::SoundRecord:
-			return a_form->GetFormEditorID();
-		default:
-		{
-			static auto tweaks = REX::W32::GetModuleHandleW(L"po3_Tweaks");
-			static auto func = reinterpret_cast<_GetFormEditorID>(REX::W32::GetProcAddress(tweaks, "GetFormEditorID"));
-			if (func) {
-				return func(a_form->formID);
-			}
-			return {};
-		}
-		}
-	}
-
 	bool ListenForArmorAddons() {
 		logger::info("  Installing Armor Addon Patcher..."sv);
 		bool result = true;
@@ -106,14 +62,35 @@ namespace Hooks::ArmorAddonPatcher
 		bool isModelMaster = false;
 		bool isAudioMaster = false;
 
-		pair.requiresProcessing |= pair.modelOwningFile || pair.modelOwningFile;
+		pair.requiresProcessing |= pair.modelOwningFile || pair.soundOwningFile;
+		bool replaced = false;
 
-		if (isModelMaster || (newFModel != pair.baseModel_f || newMModel != pair.baseModel_m)) 
-		{
+		if (isModelMaster) {
 			pair.altModel_m = newMModel;
 			pair.altModel_f = newFModel;
 			pair.associatedRaceArray = a_addon->additionalRaces;
-			pair.modelOwningFile = isModelMaster ? pair.modelOwningFile : a_file;
+			replaced = true;
+		}
+		else {
+			if (newFModel != pair.baseModel_f) {
+				pair.altModel_f = newFModel;
+				replaced = true;
+			}
+			if (newMModel != pair.baseModel_m) {
+				pair.altModel_m = newMModel;
+				replaced = true;
+			}
+		}
+
+		if (replaced) {
+			pair.bipedObj = a_addon->bipedModelData;
+			pair.bipedModels_0 = a_addon->bipedModels[0];
+			pair.bipedModels_1 = a_addon->bipedModels[1];
+			pair.associatedRaceArray = a_addon->additionalRaces;
+			pair.bodyTextureSet_0 = a_addon->skinTextures[0];
+			pair.bodyTextureSet_1 = a_addon->skinTextures[1];
+			pair.skinTextureSwapLists_0 = a_addon->skinTextureSwapLists[0];
+			pair.skinTextureSwapLists_1 = a_addon->skinTextureSwapLists[0];
 		}
 
 		if (isAudioMaster || a_addon->footstepSet != pair.baseFootstepSound) {
@@ -132,13 +109,18 @@ namespace Hooks::ArmorAddonPatcher
 				continue;
 			}
 
-#ifndef NDEBUG
-			auto name = GetEditorID(addon);
-			LOG_DEBUG("    >{}"sv, name);
-#endif
-
+			addon->bipedModels[0] = data.bipedModels_0;
+			addon->bipedModels[1] = data.bipedModels_1;
+			addon->bipedModelData = data.bipedObj;
+			addon->additionalRaces = data.associatedRaceArray;
+			addon->skinTextures[0] = data.bodyTextureSet_0;
+			addon->skinTextures[1] = data.bodyTextureSet_1;
+			addon->skinTextureSwapLists[0] = data.skinTextureSwapLists_0;
+			addon->skinTextureSwapLists[1] = data.skinTextureSwapLists_1;
 			addon->bipedModels[1].model = data.altModel_f;
 			addon->bipedModels[0].model = data.altModel_m;
+
+			addon->footstepSet = data.altFootstepSound;
 			modified.emplace(id, std::move(data));
 		}
 		mappedData = modified;

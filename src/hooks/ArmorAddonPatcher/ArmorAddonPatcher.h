@@ -28,6 +28,13 @@ namespace Hooks
 				std::string altModel_m{ "" };
 				std::string baseModel_f{ "" };
 				std::string altModel_f{ "" };
+				RE::BGSTextureSet* bodyTextureSet_0{ nullptr };
+				RE::BGSTextureSet* bodyTextureSet_1{ nullptr };
+				RE::TESModelTextureSwap bipedModels_0{};
+				RE::TESModelTextureSwap bipedModels_1{};
+				RE::BIPED_MODEL bipedObj{};
+				RE::BGSListForm* skinTextureSwapLists_0{ nullptr };
+				RE::BGSListForm* skinTextureSwapLists_1{ nullptr };
 				RE::BSTArray<RE::TESRace*> associatedRaceArray{};
 
 				RE::BGSFootstepSet* baseFootstepSound{ nullptr };
