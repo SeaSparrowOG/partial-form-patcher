@@ -46,12 +46,22 @@ namespace Settings
 			bool OverrideSettings();
 		};
 
-		inline static constexpr const char* FAKE_SETTING = "Fake|bSetting";
+		inline static constexpr const char* GENERAL_ARMA = "General|bPatchArmorAddons";
+		inline static constexpr const char* GENERAL_BOOK = "General|bPatchBooks";
+		inline static constexpr const char* GENERAL_MGEF = "General|bPatchEffects";
+		inline static constexpr const char* GENERAL_MISC = "General|bPatchMiscObjects";
+		inline static constexpr const char* GENERAL_SLGM = "General|bPatchSoulGems";
+		inline static constexpr const char* GENERAL_WEAP = "General|bPatchWeapons";
 
-		inline static constexpr const std::uint8_t EXPECTED_COUNT = 1;
+		inline static constexpr const std::uint8_t EXPECTED_COUNT = 6;
 
 		inline static constexpr const std::array<const char*, EXPECTED_COUNT> EXPECTED_SETTINGS = {
-			FAKE_SETTING
+			GENERAL_ARMA,
+			GENERAL_BOOK,
+			GENERAL_MGEF,
+			GENERAL_MISC,
+			GENERAL_SLGM,
+			GENERAL_WEAP
 		};
 
 		template <typename T>
