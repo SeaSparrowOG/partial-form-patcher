@@ -1,6 +1,17 @@
 #include "Hooks/Hooks.h"
 #include "Settings/INI/INISettings.h"
 
+static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
+{
+	switch (a_msg->type) {
+	case SKSE::MessagingInterface::kDataLoaded:
+		Hooks::DataLoaded();
+		break;
+	default:
+		break;
+	}
+}
+
 #ifdef SKYRIM_AE
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []()
 	{
@@ -62,6 +73,9 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 		SKSE::stl::report_and_fail("Failed to install hooks. Check the log for more information."sv);
 	}
 	SECTION_SEPARATOR;
+
+	const auto messaging = SKSE::GetMessagingInterface();
+	messaging->RegisterListener(&MessageEventCallback);
 
 	return true;
 }
