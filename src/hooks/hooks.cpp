@@ -20,4 +20,9 @@ namespace Hooks {
 		success &= WeaponPatcher::ListenForWeapons();
 		return success;
 	}
+
+	void DataLoaded()
+	{
+		ArmorAddonPatcher::PerformDataLoadedOp();
+	}
 }

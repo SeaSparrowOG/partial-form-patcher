@@ -2,4 +2,5 @@
 
 namespace Hooks {
 	bool Install();
+	void DataLoaded();
 }
