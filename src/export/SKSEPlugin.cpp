@@ -1,32 +1,5 @@
-#include "Data/ModObjectManager.h"
 #include "Hooks/Hooks.h"
-#include "Papyrus/Papyrus.h"
-#include "Serialization/Serde.h"
 #include "Settings/INI/INISettings.h"
-#include "Settings/JSON/JSONSettings.h"
-
-static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
-{
-	switch (a_msg->type) {
-	case SKSE::MessagingInterface::kDataLoaded:
-		SECTION_SEPARATOR;
-		if (!Data::PreloadModObjects()) {
-			SKSE::stl::report_and_fail("Failed to preload mod objects. Check the log for more information."sv);
-		}
-		SECTION_SEPARATOR;
-		if (!Settings::JSON::Read()) {
-			SKSE::stl::report_and_fail("Failed to read JSON settings. Check the log for more information."sv);
-		}
-
-		Settings::JSON::Reader::GetSingleton()->settings.clear();
-
-		SECTION_SEPARATOR;
-		logger::info("Finished startup tasks, enjoy your game!"sv);
-		break;
-	default:
-		break;
-	}
-}
 
 #ifdef SKYRIM_AE
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []()
@@ -88,20 +61,6 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 	if (!Hooks::Install()) {
 		SKSE::stl::report_and_fail("Failed to install hooks. Check the log for more information."sv);
 	}
-	SECTION_SEPARATOR;
-
-	SKSE::GetPapyrusInterface()->Register(Papyrus::RegisterFunctions);
-
-	const auto messaging = SKSE::GetMessagingInterface();
-	messaging->RegisterListener(&MessageEventCallback);
-
-	logger::info("Setting up serialization system..."sv);
-	const auto serialization = SKSE::GetSerializationInterface();
-	serialization->SetUniqueID(Serialization::ID);
-	serialization->SetSaveCallback(&Serialization::SaveCallback);
-	serialization->SetLoadCallback(&Serialization::LoadCallback);
-	serialization->SetRevertCallback(&Serialization::RevertCallback);
-	logger::info("  >Registered necessary functions."sv);
 	SECTION_SEPARATOR;
 
 	return true;
