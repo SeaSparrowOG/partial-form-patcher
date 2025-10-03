@@ -24,5 +24,6 @@ namespace Hooks {
 	void DataLoaded()
 	{
 		ArmorAddonPatcher::PerformDataLoadedOp();
+		BookPatcher::PerformDataLoadedOp();
 	}
 }
