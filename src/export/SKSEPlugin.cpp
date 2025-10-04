@@ -54,9 +54,13 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 	logger::info("Author: SeaSparrow"sv);
 	SECTION_SEPARATOR;
 
-#ifdef SKYRIM_AE
 	const auto ver = a_skse->RuntimeVersion();
+#ifdef SKYRIM_AE
 	if (ver < SKSE::RUNTIME_SSE_LATEST) {
+		return false;
+	}
+#else
+	if (ver < SKSE::RUNTIME_SSE_1_5_39) {
 		return false;
 	}
 #endif
