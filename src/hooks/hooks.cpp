@@ -25,5 +25,6 @@ namespace Hooks {
 	{
 		ArmorAddonPatcher::PerformDataLoadedOp();
 		BookPatcher::PerformDataLoadedOp();
+		SoulGemPatcher::PerformDataLoadedOp();
 	}
 }
