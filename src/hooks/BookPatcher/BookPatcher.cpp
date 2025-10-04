@@ -81,8 +81,8 @@ namespace Hooks::BookPatcher
 				book->pickupSound = data.alternatePickUpSound;
 				book->putdownSound = data.alternatePutDownSound;
 				logger::info("      Forwarded {:0X} and {:0X} from {}."sv,
-					book->pickupSound->formID, 
-					book->putdownSound->formID, 
+					book->pickupSound ? book->pickupSound->formID : 0,
+					book->putdownSound ? book->putdownSound->formID : 0,
 					data.audioOwner->GetFilename());
 			}
 

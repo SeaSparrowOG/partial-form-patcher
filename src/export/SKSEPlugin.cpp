@@ -5,6 +5,7 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
+		logger::info("Starting patching..."sv);
 		Hooks::DataLoaded();
 		break;
 	default:
@@ -40,16 +41,12 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 
 	const auto ver = a_skse->RuntimeVersion();
 #ifdef SKYRIM_AE
-	if (ver < SKSE::RUNTIME_SSE_LATEST) {
-#else
-	if (ver < SKSE::RUNTIME_1_5_39) {
-#endif
-		logger::critical(FMT_STRING("Unsupported runtime version {}"), ver.string());
+	if (ver < SKSE::RUNTIME_SSE_1_6_1130) {
 		return false;
 	}
-
+#endif
 	return true;
-	}
+}
 
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_skse)
 {
