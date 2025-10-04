@@ -9,9 +9,9 @@ namespace Hooks
 
 		struct Book
 		{
-			inline static bool Listen();
-			inline static bool Load(RE::TESObjectBOOK* a_this, RE::TESFile* a_file);
-			inline static REL::Relocation<decltype(Load)> _load;
+			inline static bool HookTESObjectBOOK();
+			inline static bool LoadBookFromFile(RE::TESObjectBOOK* a_this, RE::TESFile* a_file);
+			inline static REL::Relocation<decltype(LoadBookFromFile)> _load;
 		};
 
 		class BookCache :
@@ -30,8 +30,9 @@ namespace Hooks
 				RE::BSFixedString   alternateModel{ "" };
 				RE::TESObjectSTAT*  baseInventoryModel{ 0 };
 				RE::TESObjectSTAT*  alternateInventoryModel{ 0 };
-				RE::BSResource::ID*      baseTextures{};
-				RE::BSResource::ID*      alternateTextures{};
+				RE::BSResource::ID* baseTextures{};
+				RE::BSResource::ID* alternateTextures{};
+				uint16_t            alternateNumTextures{ 0 };
 				RE::TESFile*        visualOwner{ nullptr };
 				// End - Visuals
 
@@ -43,22 +44,21 @@ namespace Hooks
 				RE::TESFile* audioOwner{ nullptr };
 				// End - Audio
 
-				// Overwritten conditions: Either audioOwner or visualOwner is defined 
-				// by the time this form would be loaded from another plugin.
 				bool overwritten{ false };
 			};
 
-			struct ObjectReadData
+			struct ReadBookData
 			{
 				RE::TESFile* file{ nullptr };
 				uint32_t     fileOffset{ 0 };
+				uint16_t     fileNumTextures{ 0 };
 				RE::BSResource::ID* fileTextures{ nullptr };
 			};
 
-			void CompareBook(RE::TESObjectBOOK* a_book, RE::TESFile* a_file, uint32_t a_offset, RE::BSResource::ID* a_fileTexture);
+			void CompareBook(RE::TESObjectBOOK* a_book, ReadBookData a_fileData);
 
-			std::unordered_map<RE::FormID, CachedData>                  mappedData{};
-			std::unordered_map<RE::FormID, std::vector<ObjectReadData>> loadedBooks{};
+			std::unordered_map<RE::FormID, std::vector<ReadBookData>> readData{};
+			std::unordered_map<RE::FormID, CachedData>                changedData{};
 		};
 	}
 }
