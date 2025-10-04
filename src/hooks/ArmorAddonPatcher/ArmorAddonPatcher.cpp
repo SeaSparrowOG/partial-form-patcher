@@ -47,9 +47,7 @@ namespace Hooks::ArmorAddonPatcher
 
 		if (!mappedData.contains(addonID)) {
 			auto newData = CachedData();
-			newData.associatedRaceArray = a_addon->additionalRaces;
 			newData.baseFootstepSound = a_addon->footstepSet;
-
 			newData.baseModel_f = a_addon->bipedModels[1].model.c_str();
 			newData.baseModel_m = a_addon->bipedModels[0].model.c_str();
 			mappedData.emplace(addonID, std::move(newData));
@@ -68,7 +66,6 @@ namespace Hooks::ArmorAddonPatcher
 		if (isModelMaster) {
 			pair.altModel_m = newMModel;
 			pair.altModel_f = newFModel;
-			pair.associatedRaceArray = a_addon->additionalRaces;
 			replaced = true;
 		}
 		else {
@@ -80,13 +77,15 @@ namespace Hooks::ArmorAddonPatcher
 				pair.altModel_m = newMModel;
 				replaced = true;
 			}
+			if (replaced) {
+				pair.modelOwningFile = a_file;
+			}
 		}
 
 		if (replaced) {
 			pair.bipedObj = a_addon->bipedModelData;
-			pair.bipedModels_0 = a_addon->bipedModels[0];
-			pair.bipedModels_1 = a_addon->bipedModels[1];
-			pair.associatedRaceArray = a_addon->additionalRaces;
+			pair.bipedModels_0 = &a_addon->bipedModels[0];
+			pair.bipedModels_1 = &a_addon->bipedModels[1];
 			pair.bodyTextureSet_0 = a_addon->skinTextures[0];
 			pair.bodyTextureSet_1 = a_addon->skinTextures[1];
 			pair.skinTextureSwapLists_0 = a_addon->skinTextureSwapLists[0];
@@ -109,17 +108,15 @@ namespace Hooks::ArmorAddonPatcher
 				continue;
 			}
 
-			addon->bipedModels[0] = data.bipedModels_0;
-			addon->bipedModels[1] = data.bipedModels_1;
+			addon->bipedModels[0] = *data.bipedModels_0;
+			addon->bipedModels[1] = *data.bipedModels_1;
 			addon->bipedModelData = data.bipedObj;
-			addon->additionalRaces = data.associatedRaceArray;
 			addon->skinTextures[0] = data.bodyTextureSet_0;
 			addon->skinTextures[1] = data.bodyTextureSet_1;
 			addon->skinTextureSwapLists[0] = data.skinTextureSwapLists_0;
 			addon->skinTextureSwapLists[1] = data.skinTextureSwapLists_1;
 			addon->bipedModels[1].model = data.altModel_f;
 			addon->bipedModels[0].model = data.altModel_m;
-
 			addon->footstepSet = data.altFootstepSound;
 			modified.emplace(id, std::move(data));
 		}
