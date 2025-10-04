@@ -26,21 +26,13 @@ namespace Hooks
 			struct CachedData
 			{
 				// Start - Visuals
-				RE::BSFixedString        baseModel{ "" };
-				RE::BSFixedString        alternateModel{ "" };
-				RE::FormID               baseInventoryModel{ 0 };
-				RE::FormID               alternateInventoryModel{ 0 };
-
-				std::uint32_t            baseAltTextureCount{ 0 };
-				std::uint32_t            alternateAltTextureCount{ 0 };
-				ALT_TEXTURE*             baseAltTextures{ nullptr };
-				ALT_TEXTURE*             alternateAltTextures{ nullptr };
-
-				std::uint16_t            baseNumAddons{ 0 };
-				std::uint16_t            alternateNumAddons{ 0 };
-				std::uint32_t*           baseAddons{ nullptr };
-				std::uint32_t*           alternateAddons{ nullptr };
-				RE::TESFile*             visualOwner{ nullptr };
+				RE::BSFixedString   baseModel{ "" };
+				RE::BSFixedString   alternateModel{ "" };
+				RE::TESObjectSTAT*  baseInventoryModel{ 0 };
+				RE::TESObjectSTAT*  alternateInventoryModel{ 0 };
+				RE::BSResource::ID*      baseTextures{};
+				RE::BSResource::ID*      alternateTextures{};
+				RE::TESFile*        visualOwner{ nullptr };
 				// End - Visuals
 
 				// Start - Audio
@@ -56,7 +48,17 @@ namespace Hooks
 				bool overwritten{ false };
 			};
 
-			std::unordered_map<RE::FormID, CachedData> mappedData{};
+			struct ObjectReadData
+			{
+				RE::TESFile* file{ nullptr };
+				uint32_t     fileOffset{ 0 };
+				RE::BSResource::ID* fileTextures{ nullptr };
+			};
+
+			void CompareBook(RE::TESObjectBOOK* a_book, RE::TESFile* a_file, uint32_t a_offset, RE::BSResource::ID* a_fileTexture);
+
+			std::unordered_map<RE::FormID, CachedData>                  mappedData{};
+			std::unordered_map<RE::FormID, std::vector<ObjectReadData>> loadedBooks{};
 		};
 	}
 }
