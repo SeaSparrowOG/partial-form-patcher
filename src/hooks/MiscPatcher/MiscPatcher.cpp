@@ -35,6 +35,17 @@ namespace Hooks::MiscPatcher
 		if (result && a_this && duplicate) {
 			auto* manager = MiscObjectCache::GetSingleton();
 			if (manager) {
+				if (!duplicate->Seek(0)) {
+					SKSE::stl::report_and_fail("Failed to seek 0"sv);
+				}
+				bool found = false;
+				auto formID = a_this->formID;
+				while (!found && duplicate->SeekNextForm(true)) {
+					if (duplicate->currentform.formID != formID) {
+						continue;
+					}
+					found = true;
+				}
 				manager->OnMiscObjectLoaded(a_this, duplicate);
 			}
 		}
@@ -79,6 +90,8 @@ namespace Hooks::MiscPatcher
 		if (!readData.contains(formID)) {
 			auto newData = ReadData();
 			newData.baseModel = fileModel;
+			newData.basePickUpSound = filePickupSound;
+			newData.basePutDownSound = filePutdownSound;
 			readData.emplace(formID, std::move(newData));
 			return;
 		}
@@ -100,11 +113,20 @@ namespace Hooks::MiscPatcher
 		}
 
 		bool overwritesBaseTextures = fileModel != data.baseModel;
+		bool overwritesBaseAudio = filePickupSound != data.basePickUpSound;
+		overwritesBaseAudio |= filePutdownSound != data.basePutDownSound;
 
 		if (isOverwritingMasterVisuals || overwritesBaseTextures)
 		{
 			data.altModel = fileModel;
 			data.visualOwner = fileName;
+			data.holdsData = true;
+		}
+		if (isOverwritingMasterAudio || overwritesBaseAudio)
+		{
+			data.altPickUpSound = filePickupSound;
+			data.altPutDownSound = filePutdownSound;
+			data.audioOwner = fileName;
 			data.holdsData = true;
 		}
 	}
@@ -124,7 +146,6 @@ namespace Hooks::MiscPatcher
 			if (!data.audioOwner.empty()) {
 				auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
 				auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
-				logger::info("{}", pickUp ? Utilities::GetEditorID(pickUp) : "NONE");
 				obj->pickupSound = pickUp;
 				obj->putdownSound = putDown;
 				logger::info("    >Updated sounds from {}"sv, data.audioOwner);

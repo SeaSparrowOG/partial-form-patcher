@@ -23,14 +23,26 @@ namespace Hooks::SoulGemPatcher
 		return true;
 	}
 
-	inline bool SoulGem::LoadSoulGemFromFile(RE::TESSoulGem* a_this, 
-		RE::TESFile* a_file) 
+	inline bool SoulGem::LoadSoulGemFromFile(RE::TESSoulGem* a_this,
+		RE::TESFile* a_file)
 	{
+		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
-		if (result && a_this) {
+		if (result && a_this && duplicate) {
 			auto* manager = SoulGemCache::GetSingleton();
 			if (manager) {
-				manager->OnSoulGemLoaded(a_this, a_file);
+				if (!duplicate->Seek(0)) {
+					SKSE::stl::report_and_fail("Failed to seek 0"sv);
+				}
+				bool found = false;
+				auto formID = a_this->formID;
+				while (!found && duplicate->SeekNextForm(true)) {
+					if (duplicate->currentform.formID != formID) {
+						continue;
+					}
+					found = true;
+				}
+				manager->OnSoulGemLoaded(a_this, duplicate);
 			}
 		}
 		return result;
@@ -43,236 +55,117 @@ namespace Hooks::SoulGemPatcher
 		}
 	}
 
-	void SoulGemCache::OnSoulGemLoaded(RE::TESSoulGem* a_soulGem, 
+	void Hooks::SoulGemPatcher::SoulGemCache::OnSoulGemLoaded(RE::TESSoulGem* a_obj,
 		RE::TESFile* a_file)
 	{
-		auto soulGemID = a_soulGem->formID;
-		uint32_t fileOffset = 0;
-		// Note, soul gems are not description forms, so this is necessary.
-		if (!a_file->OpenTES(RE::NiFile::OpenMode::kReadOnly, true)) {
-			logger::error("Failed to open {}."sv, a_file->GetFilename());
-			return;
+		auto formID = a_obj->formID;
+		std::string_view fileName = a_file->fileName;
+		RE::BSFixedString fileModel = a_obj->model;
+		RE::FormID filePickupSound = 0;
+		RE::FormID filePutdownSound = 0;
+
+		while (a_file->SeekNextSubrecord()) {
+			// Pickup
+			if (Utilities::IsSubrecord(a_file, "YNAM")) {
+				RE::FormID retrieved = 0;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					LOG_DEBUG("YNAM - {}"sv, retrieved);
+					LOG_DEBUG("  >{}", a_obj->GetName());
+					filePickupSound = retrieved;
+				}
+				else {
+					SKSE::stl::report_and_fail("Failed to read data."sv);
+				}
+			}
+			// Putdown
+			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
+				RE::FormID retrieved = 0;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					LOG_DEBUG("ZNAM - {}"sv, retrieved);
+					LOG_DEBUG("  >{}", a_obj->GetName());
+					filePutdownSound = retrieved;
+				}
+				else {
+					SKSE::stl::report_and_fail("Failed to read data."sv);
+				}
+			}
+			// Model Data
+			/*
+			else if (Utilities::IsSubrecord(a_file, "MODT")) {
+				RE::BSResource::ID* retrieved = nullptr;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					fileTextures = retrieved;
+				}
+			}
+			*/
 		}
-		if (!a_file->Seek(0)) {
-			logger::info("Failed to set stream start to 0 for {}"sv, a_file->GetFilename());
-			a_file->CloseTES(false);
+
+		if (!readData.contains(formID)) {
+			auto newData = ReadData();
+			newData.baseModel = fileModel;
+			readData.emplace(formID, std::move(newData));
 			return;
 		}
 
-		bool found = false;
-		while (a_file->SeekNextForm(true) && !found) {
-			if (a_file->currentform.formID != soulGemID) {
+		auto& data = readData.at(formID);
+		data.overwritten |= data.holdsData;
+
+		auto& masters = a_file->masters;
+		auto end = masters.end();
+		bool isOverwritingMasterVisuals = false;
+		bool isOverwritingMasterAudio = false;
+		for (auto it = masters.begin(); (!isOverwritingMasterVisuals || !isOverwritingMasterAudio) && it != end; ++it) {
+			if (!*it) { // Should never happen, these are file names that REQUIRE a name.
 				continue;
 			}
-			if (a_file->GetFormType() != RE::TESSoulGem::FORMTYPE) {
-				logger::error("Stream found soul gem with ID {:0X}, but {} reports it isn't a soul gem."sv, soulGemID, a_file->GetFilename());
-				return;
-			}
-			found = true;
-			fileOffset = a_file->fileOffset;
+			auto name = std::string((*it));
+			isOverwritingMasterVisuals = name == data.visualOwner;
+			isOverwritingMasterAudio = name == data.audioOwner;
 		}
 
-		auto data = ReadSoulGemData();
-		data.file = a_file;
-		data.fileOffset = fileOffset;
-		data.fileTextures = a_soulGem->textures;
-		data.fileNumTextures = a_soulGem->numTextures;
-		if (readData.contains(soulGemID)) {
-			readData.at(soulGemID).push_back(std::move(data));
+		bool overwritesBaseTextures = fileModel != data.baseModel;
+		bool overwritesBaseAudio = filePickupSound != data.basePickUpSound;
+		overwritesBaseAudio |= filePutdownSound != data.basePutDownSound;
+
+		if (isOverwritingMasterVisuals || overwritesBaseTextures)
+		{
+			data.altModel = fileModel;
+			data.visualOwner = fileName;
+			data.holdsData = true;
 		}
-		else {
-			auto newVec = std::vector<ReadSoulGemData>();
-			newVec.push_back(std::move(data));
-			readData.emplace(soulGemID, std::move(newVec));
+		if (isOverwritingMasterAudio || overwritesBaseAudio)
+		{
+			data.altPickUpSound = filePickupSound;
+			data.altPutDownSound = filePutdownSound;
+			data.audioOwner = fileName;
+			data.holdsData = true;
 		}
 	}
 
 	void SoulGemCache::OnDataLoaded() {
-		logger::info("  Processing {} soul gems..."sv, readData.size());
+		logger::info("Patching {} Soul Gems..."sv, readData.size());
 		for (auto& [id, data] : readData) {
-			if (data.size() < 2) {
-				continue;
-			}
-
-			auto* soulGem = RE::TESForm::LookupByID<RE::TESSoulGem>(id);
-			if (!soulGem) {
-				logger::warn("    >Warning, soul gem with FormID {:0X} is no longer a soul gem in memory. Skipping, but take note."sv, id);
-				continue;
-			}
-
-			for (auto& fileData : data) {
-				CompareSoulGem(soulGem, std::move(fileData));
-			}
-		}
-		readData.clear();
-
-		std::unordered_map<RE::FormID, CachedData> actualChanges{};
-		for (auto& [id, data] : changedData) {
 			if (!data.overwritten) {
 				continue;
 			}
-			auto* soulGem = RE::TESForm::LookupByID<RE::TESSoulGem>(id);
-			if (!soulGem) {
-				continue;
+			auto* obj = RE::TESForm::LookupByID<RE::TESSoulGem>(id);
+			if (!obj) {
+				logger::error("  >Deleted record at {:0X}."sv, id);
 			}
 
-			auto* soulGemName = soulGem->GetName();
-			if (strcmp(soulGemName, "") == 0) {
-				soulGemName = "[No Name]";
+			logger::info("  Patching {} ({:0X} -> {})"sv, obj->GetName(), id, Utilities::GetEditorID(obj));
+			if (!data.audioOwner.empty()) {
+				auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
+				auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
+				obj->pickupSound = pickUp;
+				obj->putdownSound = putDown;
+				logger::info("    >Updated sounds from {}"sv, data.audioOwner);
 			}
-			auto soulGemEDID = Utilities::GetEditorID(soulGem);
-			soulGemEDID = soulGemEDID.empty() ? "Couldn't Retrieve EditorID" : soulGemEDID;
-			logger::info("    >Patching {} ({:0X} -> {})", soulGemName, id, soulGemEDID);
-
-			if (data.audioOwner) {
-				soulGem->pickupSound = data.alternatePickUpSound;
-				soulGem->putdownSound = data.alternatePutDownSound;
-				logger::info("      Forwarded {:0X} and {:0X} from {}."sv,
-					soulGem->pickupSound ? soulGem->pickupSound->formID : 0,
-					soulGem->putdownSound ? soulGem->putdownSound->formID : 0,
-					data.audioOwner->GetFilename());
-			}
-
-			if (data.visualOwner) {
-				soulGem->textures = data.alternateTextures;
-				soulGem->numTextures = data.alternateNumTextures;
-				soulGem->model = data.alternateModel;
-				logger::info("      Forwarded visual data from {}."sv, data.visualOwner->GetFilename());
-			}
-			actualChanges.emplace(id, std::move(data));
-		}
-		changedData.clear();
-		changedData = actualChanges;
-		actualChanges.clear();
-		logger::info("  Finished processing {} patches for soul gems.", changedData.size());
-	}
-
-	void SoulGemCache::CompareSoulGem(RE::TESSoulGem* a_soulGem, 
-		ReadSoulGemData a_fileData)
-	{
-		auto* file = a_fileData.file;
-		auto offset = a_fileData.fileOffset;
-		auto* fileTextures = a_fileData.fileTextures;
-
-		if (!file->OpenTES(RE::NiFile::OpenMode::kReadOnly, true)) {
-			logger::error("Failed to open file {}", file->GetFilename());
-			return;
-		}
-		if (!file->Seek(offset)) {
-			logger::error("Failed to seek for {} in {}."sv, a_soulGem->GetName(), file->GetFilename());
-			file->CloseTES(false);
-			return;
-		}
-		if (file->GetFormType() != RE::TESSoulGem::FORMTYPE) {
-			logger::error("Form in {} exists, but is not a soul gem."sv, file->GetFilename());
-			file->CloseTES(false);
-			return;
-		}
-		auto soulGemID = a_soulGem->GetFormID();
-		if (file->currentform.formID != soulGemID) {
-			logger::error("Form in {} exists and is a soul gem, but is not the stored soul gem."sv, file->GetFilename());
-			file->CloseTES(false);
-			return;
-		}
-
-		RE::TESObjectSTAT* fileInventoryModel = nullptr;
-		RE::BSFixedString fileModelPath = "";
-		RE::BGSSoundDescriptorForm* filePickupSound = nullptr;
-		RE::BGSSoundDescriptorForm* filePutdownSound = nullptr;
-		while (file->SeekNextSubrecord()) {
-
-			if (Utilities::IsSubrecord(file, "INAM")) {
-				RE::FormID retrieved = 0;
-				if (file->ReadData(&retrieved, file->actualChunkSize)) {
-					fileInventoryModel = RE::TESForm::LookupByID<RE::TESObjectSTAT>(retrieved);
-				}
-			}
-			// Model
-			else if (Utilities::IsSubrecord(file, "MODL")) {
-				std::string temp(file->actualChunkSize, '\0');
-				if (file->ReadData(temp.data(), temp.size())) {
-					fileModelPath = temp.c_str();
-				}
-			}
-			// Pickup
-			else if (Utilities::IsSubrecord(file, "YNAM")) {
-				RE::FormID retrieved = 0;
-				if (file->ReadData(&retrieved, file->actualChunkSize)) {
-					filePickupSound = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(retrieved);
-				}
-			}
-			// Putdown
-			else if (Utilities::IsSubrecord(file, "ZNAM")) {
-				RE::FormID retrieved = 0;
-				if (file->ReadData(&retrieved, file->actualChunkSize)) {
-					filePutdownSound = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(retrieved);
-				}
+			if (!data.visualOwner.empty()) {
+				obj->model = data.altModel;
+				logger::info("    >Updated visuals from {}"sv, data.visualOwner);
 			}
 		}
-		file->CloseTES(false);
-
-		if (!changedData.contains(a_soulGem->formID)) {
-			auto newChangedData = CachedData();
-			newChangedData.baseModel = fileModelPath.empty() ? a_soulGem->model : fileModelPath;
-			newChangedData.basePickUpSound = filePickupSound;
-			newChangedData.basePutDownSound = filePutdownSound;
-			newChangedData.baseTextures = fileTextures;
-
-			changedData.emplace(a_soulGem->formID, std::move(newChangedData));
-			return;
-		}
-
-		auto& data = changedData.at(soulGemID);
-		data.overwritten |= data.audioOwner || data.visualOwner;
-
-		bool previousIsAudioMaster = false;
-		if (data.audioOwner) {
-			for (auto* master : std::span(a_fileData.file->masterPtrs, a_fileData.file->masterCount)) {
-				previousIsAudioMaster |= master == data.audioOwner;
-			}
-		}
-
-		bool previousIsVisualMaster = false;
-		if (data.visualOwner) {
-			for (auto* master : std::span(a_fileData.file->masterPtrs, a_fileData.file->masterCount)) {
-				previousIsVisualMaster |= master == data.visualOwner;
-			}
-		}
-
-		bool updateVisuals = false;
-		if (fileModelPath != data.baseModel)
-		{
-			updateVisuals = true;
-		}
-		bool updateSounds = false;
-		if ((filePickupSound && filePickupSound != data.basePickUpSound) ||
-			(filePutdownSound && filePutdownSound != data.basePutDownSound))
-		{
-			updateSounds = true;
-		}
-		if (!updateVisuals && !updateSounds) {
-			return;
-		}
-
-		//Updates overwritten.
-		if ((updateSounds && !data.visualOwner) ||
-			(updateVisuals && !data.audioOwner) ||
-			(updateVisuals && updateSounds))
-		{
-			data.overwritten = false;
-		}
-
-		if (updateSounds) {
-			data.alternatePickUpSound = filePickupSound;
-			data.alternatePutDownSound = filePutdownSound;
-			data.audioOwner = a_fileData.file;
-		}
-
-		if (updateVisuals) {
-			data.alternateModel = fileModelPath;
-			data.visualOwner = a_fileData.file;
-			data.alternateTextures = a_fileData.fileTextures;
-			data.alternateNumTextures = a_fileData.fileNumTextures;
-		}
+		logger::info("Finished."sv);
 	}
 }

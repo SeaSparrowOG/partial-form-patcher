@@ -18,44 +18,27 @@ namespace Hooks
 			public REX::Singleton<SoulGemCache>
 		{
 		public:
-			void OnSoulGemLoaded(RE::TESSoulGem* a_soulGem, RE::TESFile* a_file);
+			void OnSoulGemLoaded(RE::TESSoulGem * a_obj, RE::TESFile* a_file);
 			void OnDataLoaded();
 				
 		private:
-			struct CachedData
+			struct ReadData
 			{
-				// Start - Visuals
 				RE::BSFixedString   baseModel{ "" };
-				RE::BSFixedString   alternateModel{ "" };
-				RE::BSResource::ID* baseTextures{};
-				RE::BSResource::ID* alternateTextures{};
-				uint16_t            alternateNumTextures{ 0 };
-				RE::TESFile* visualOwner{ nullptr };
-				// End - Visuals
+				RE::BSFixedString   altModel{ "" };
 
-				// Start - Audio
-				RE::BGSSoundDescriptorForm* basePickUpSound{ nullptr };
-				RE::BGSSoundDescriptorForm* basePutDownSound{ nullptr };
-				RE::BGSSoundDescriptorForm* alternatePickUpSound{ nullptr };
-				RE::BGSSoundDescriptorForm* alternatePutDownSound{ nullptr };
-				RE::TESFile* audioOwner{ nullptr };
-				// End - Audio
+				RE::FormID          basePutDownSound{ 0 };
+				RE::FormID          basePickUpSound{ 0 };
+				RE::FormID          altPutDownSound{ 0 };
+				RE::FormID          altPickUpSound{ 0 };
 
+				std::string_view visualOwner{ "" };
+				std::string_view audioOwner{ "" };
 				bool overwritten{ false };
+				bool holdsData{ false };
 			};
 
-			struct ReadSoulGemData
-			{
-				RE::TESFile* file{ nullptr };
-				uint32_t     fileOffset{ 0 };
-				uint16_t     fileNumTextures{ 0 };
-				RE::BSResource::ID* fileTextures{ nullptr };
-			};
-
-			void CompareSoulGem(RE::TESSoulGem* a_soulGem, ReadSoulGemData a_fileData);
-
-			std::unordered_map<RE::FormID, std::vector<ReadSoulGemData>> readData{};
-			std::unordered_map<RE::FormID, CachedData>                changedData{};
+			std::unordered_map<RE::FormID, ReadData> readData{};
 		};
 	}
 }

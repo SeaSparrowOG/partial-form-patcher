@@ -46,7 +46,17 @@ namespace Utilities
 		}
 	}
 
-	inline static bool IsSubrecord(RE::TESFile* file, const char* fourcc) {
+	inline static std::string RecordType(const uint32_t a_fourCC) {
+		char str[5];
+		str[0] = static_cast<char>(a_fourCC & 0xFF);
+		str[1] = static_cast<char>((a_fourCC >> 8) & 0xFF);
+		str[2] = static_cast<char>((a_fourCC >> 16) & 0xFF);
+		str[3] = static_cast<char>((a_fourCC >> 24) & 0xFF);
+		str[4] = '\0';
+		return std::string(str);
+	}
+
+	inline static bool IsSubrecord(RE::TESFile* file, const std::string& fourcc) {
 		const auto type = file->GetCurrentSubRecordType();
 		return (type & 0xFF) == static_cast<uint8_t>(fourcc[0]) &&
 			((type >> 8) & 0xFF) == static_cast<uint8_t>(fourcc[1]) &&
