@@ -1,9 +1,16 @@
 #include "MiscPatcher.h"
 
+#include "common/Utilities.h"
 #include "Settings/INI/INISettings.h"
 
 namespace Hooks::MiscPatcher
 {
+	void PerformDataLoadedOp() {
+		auto* manager = MiscObjectCache::GetSingleton();
+		if (manager) {
+			manager->PatchMiscObjects();
+		}
+	}
 	bool ListenForMisc() {
 		logger::info("  Installing Misc Object Patcher..."sv);
 		bool result = true;
@@ -12,18 +19,121 @@ namespace Hooks::MiscPatcher
 			logger::info("    >User opted to not install the patcher."sv);
 			return result;
 		}
-		result &= Misc::Listen();
+		result &= Misc::HookTESObjectMISC();
 		return result;
 	}
 
-	bool Misc::Listen() {
+	bool Misc::HookTESObjectMISC() {
 		REL::Relocation<std::uintptr_t> VTABLE{ RE::TESObjectMISC::VTABLE[0] };
-		_load = VTABLE.write_vfunc(0x6, Load);
+		_load = VTABLE.write_vfunc(0x6, LoadMiscObject);
 		return true;
 	}
 
-	inline bool Misc::Load(RE::TESObjectMISC* a_this, RE::TESFile* a_file) {
+	inline bool Misc::LoadMiscObject(RE::TESObjectMISC* a_this, RE::TESFile* a_file) {
+		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
+		if (result && a_this && duplicate) {
+			auto* manager = MiscObjectCache::GetSingleton();
+			if (manager) {
+				manager->OnMiscObjectLoaded(a_this, duplicate);
+			}
+		}
 		return result;
+	}
+
+	void MiscObjectCache::OnMiscObjectLoaded(RE::TESObjectMISC* a_obj,
+		RE::TESFile* a_file)
+	{
+		auto formID = a_obj->formID;
+		std::string_view fileName = a_file->fileName;
+		RE::BSFixedString fileModel = a_obj->model;
+		RE::FormID filePickupSound = 0;
+		RE::FormID filePutdownSound = 0;
+
+		while (a_file->SeekNextSubrecord()) {
+			// Pickup
+			if (Utilities::IsSubrecord(a_file, "YNAM")) {
+				RE::FormID retrieved = 0;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					filePickupSound = retrieved;
+				}
+			}
+			// Putdown
+			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
+				RE::FormID retrieved = 0;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					filePutdownSound = retrieved;
+				}
+			}
+			// Model Data
+			/*
+			else if (Utilities::IsSubrecord(a_file, "MODT")) {
+				RE::BSResource::ID* retrieved = nullptr;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					fileTextures = retrieved;
+				}
+			}
+			*/
+		}
+
+		if (!readData.contains(formID)) {
+			auto newData = ReadData();
+			newData.baseModel = fileModel;
+			readData.emplace(formID, std::move(newData));
+			return;
+		}
+
+		auto& data = readData.at(formID);
+		data.overwritten |= data.holdsData;
+
+		auto& masters = a_file->masters;
+		auto end = masters.end();
+		bool isOverwritingMasterVisuals = false;
+		bool isOverwritingMasterAudio = false;
+		for (auto it = masters.begin(); (!isOverwritingMasterVisuals || !isOverwritingMasterAudio) && it != end; ++it) {
+			if (!*it) { // Should never happen, these are file names that REQUIRE a name.
+				continue;
+			}
+			auto name = std::string((*it));
+			isOverwritingMasterVisuals = name == data.visualOwner;
+			isOverwritingMasterAudio = name == data.audioOwner;
+		}
+
+		bool overwritesBaseTextures = fileModel != data.baseModel;
+
+		if (isOverwritingMasterVisuals || overwritesBaseTextures)
+		{
+			data.altModel = fileModel;
+			data.visualOwner = fileName;
+			data.holdsData = true;
+		}
+	}
+	void MiscObjectCache::PatchMiscObjects()
+	{
+		logger::info("Patching {} Misc Objects..."sv, readData.size());
+		for (auto& [id, data] : readData) {
+			if (!data.overwritten) {
+				continue;
+			}
+			auto* obj = RE::TESForm::LookupByID<RE::TESObjectMISC>(id);
+			if (!obj) {
+				logger::error("  >Deleted record at {:0X}."sv, id);
+			}
+
+			logger::info("  Patching {} ({:0X} -> {})"sv, obj->GetName(), id, Utilities::GetEditorID(obj));
+			if (!data.audioOwner.empty()) {
+				auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
+				auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
+				logger::info("{}", pickUp ? Utilities::GetEditorID(pickUp) : "NONE");
+				obj->pickupSound = pickUp;
+				obj->putdownSound = putDown;
+				logger::info("    >Updated sounds from {}"sv, data.audioOwner);
+			}
+			if (!data.visualOwner.empty()) {
+				obj->model = data.altModel;
+				logger::info("    >Updated visuals from {}"sv, data.visualOwner);
+			}
+		}
+		logger::info("Finished."sv);
 	}
 }
