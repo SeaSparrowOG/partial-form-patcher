@@ -69,24 +69,14 @@ namespace Hooks::SoulGemPatcher
 			if (Utilities::IsSubrecord(a_file, "YNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					LOG_DEBUG("YNAM - {}"sv, retrieved);
-					LOG_DEBUG("  >{}", a_obj->GetName());
 					filePickupSound = retrieved;
-				}
-				else {
-					SKSE::stl::report_and_fail("Failed to read data."sv);
 				}
 			}
 			// Putdown
 			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					LOG_DEBUG("ZNAM - {}"sv, retrieved);
-					LOG_DEBUG("  >{}", a_obj->GetName());
 					filePutdownSound = retrieved;
-				}
-				else {
-					SKSE::stl::report_and_fail("Failed to read data."sv);
 				}
 			}
 			// Model Data
