@@ -76,15 +76,6 @@ namespace Hooks::MiscPatcher
 					filePutdownSound = retrieved;
 				}
 			}
-			// Model Data
-			/*
-			else if (Utilities::IsSubrecord(a_file, "MODT")) {
-				RE::BSResource::ID* retrieved = nullptr;
-				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileTextures = retrieved;
-				}
-			}
-			*/
 		}
 
 		if (!readData.contains(formID)) {
@@ -130,9 +121,12 @@ namespace Hooks::MiscPatcher
 			data.holdsData = true;
 		}
 	}
+
 	void MiscObjectCache::PatchMiscObjects()
 	{
 		logger::info("Patching {} Misc Objects..."sv, readData.size());
+
+		std::unordered_map<RE::FormID, ReadData> filteredData;
 		for (auto& [id, data] : readData) {
 			if (!data.overwritten) {
 				continue;
@@ -140,21 +134,46 @@ namespace Hooks::MiscPatcher
 			auto* obj = RE::TESForm::LookupByID<RE::TESObjectMISC>(id);
 			if (!obj) {
 				logger::error("  >Deleted record at {:0X}."sv, id);
+				continue;
 			}
 
-			logger::info("  Patching {} ({:0X} -> {})"sv, obj->GetName(), id, Utilities::GetEditorID(obj));
+			bool patchedAudio = false;
+			bool patchedVisuals = false;
 			if (!data.audioOwner.empty()) {
 				auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
 				auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
-				obj->pickupSound = pickUp;
-				obj->putdownSound = putDown;
-				logger::info("    >Updated sounds from {}"sv, data.audioOwner);
+				
+				bool needsPatch = false;
+				needsPatch |= (putDown != obj->putdownSound) && putDown;
+				needsPatch |= (pickUp != obj->pickupSound) && pickUp;
+
+				if (needsPatch) {
+					obj->pickupSound = pickUp;
+					obj->putdownSound = putDown;
+				}
+				patchedAudio |= needsPatch;
 			}
 			if (!data.visualOwner.empty()) {
-				obj->model = data.altModel;
-				logger::info("    >Updated visuals from {}"sv, data.visualOwner);
+				bool needsPatch = false;
+				needsPatch |= (data.altModel != obj->model) && !data.altModel.empty();
+				patchedVisuals |= needsPatch;
+				if (needsPatch) {
+					obj->model = data.altModel;
+				}
+			}
+			if (patchedAudio || patchedVisuals) {
+				filteredData.emplace(id, data);
+				std::string changes = "";
+				if (patchedVisuals) {
+					changes += " Visuals: " + std::string(data.visualOwner);
+				}
+				if (patchedAudio) {
+					changes += " Audio " + std::string(data.audioOwner);
+				}
+				logger::info("  >Patched misc object {} at {:0X}. Changes:{}"sv, obj->GetName(), id, changes);
 			}
 		}
-		logger::info("Finished."sv);
+		readData = std::move(filteredData);
+		logger::info("Finished; Applied {} patches."sv, readData.size());
 	}
 }

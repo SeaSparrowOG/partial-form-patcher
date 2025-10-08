@@ -252,6 +252,7 @@ namespace Hooks::WeaponPatcher
 			auto* obj = RE::TESForm::LookupByID<RE::TESObjectWEAP>(id);
 			if (!obj) {
 				logger::error("  >Deleted record at {:0X}."sv, id);
+				continue;
 			}
 
 			bool patchedAudio = false;
