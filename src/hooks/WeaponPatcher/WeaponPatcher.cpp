@@ -75,97 +75,124 @@ namespace Hooks::WeaponPatcher
 		RE::FormID fileEquip= 0;
 		RE::FormID fileUnEquip = 0;
 
+		uint16_t lightToRemove = 0;
+		uint8_t normalToRemove = 0;
+		for (const auto* master : std::span(a_file->masterPtrs, a_file->masterCount)) {
+			if (master->compileIndex == 0xFF && master->IsLight()) {
+				++lightToRemove;
+			}
+			else {
+				++normalToRemove;
+			}
+		}
+
+		auto compileIndex = std::clamp((uint8_t)(a_file->compileIndex - normalToRemove), 
+			(uint8_t)0, 
+			(uint8_t)std::numeric_limits<uint8_t>::max()) 
+			<< 24;
+		if (a_file->compileIndex == 0xFE && a_file->IsLight()) {
+			compileIndex += std::clamp((uint16_t)(a_file->smallFileCompileIndex - lightToRemove),
+				(uint16_t)0,
+				(uint16_t)std::numeric_limits<uint16_t>::max())
+				<< 12;
+		}
+
 		while (a_file->SeekNextSubrecord()) {
 			// Pickup
 			if (Utilities::IsSubrecord(a_file, "YNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePickupSound = retrieved;
+					filePickupSound = retrieved + compileIndex;
 				}
 			}
 			// Put Down
 			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePutdownSound = retrieved;
-				}
-			}
-			// First Person Model
-			else if (Utilities::IsSubrecord(a_file, "WNAM")) {
-				RE::FormID retrieved = 0;
-				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileFirstPersonModel = retrieved;
+					filePutdownSound = retrieved + compileIndex;
 				}
 			}
 			// Block Impact Data Set
 			else if (Utilities::IsSubrecord(a_file, "BIDS")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileBlockBashImpactDataSet = retrieved;
+					fileBlockBashImpactDataSet = retrieved + compileIndex;
 				}
 			}
 			// Block Alternate Material
 			else if (Utilities::IsSubrecord(a_file, "BAMT")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileBlockAlternateMaterial = retrieved;
+					fileBlockAlternateMaterial = retrieved + compileIndex;
 				}
 			}
 			// Impact Data Set
 			else if (Utilities::IsSubrecord(a_file, "INAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileImpactDataSet = retrieved;
+					fileImpactDataSet = retrieved + compileIndex;
 				}
 			}
 			// Attack Sound
 			else if (Utilities::IsSubrecord(a_file, "SNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileAttackSound = retrieved;
+					fileAttackSound = retrieved + compileIndex;
 				}
 			}
 			// Attack Loop Sound 
 			else if (Utilities::IsSubrecord(a_file, "7NAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileAttackLoop = retrieved;
+					fileAttackLoop = retrieved + compileIndex;
 				}
 			}
 			// Attack Fail
 			else if (Utilities::IsSubrecord(a_file, "TNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileAttackFail = retrieved;
+					fileAttackFail = retrieved + compileIndex;
 				}
 			}
 			// Idle
 			else if (Utilities::IsSubrecord(a_file, "UNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileIdle = retrieved;
+					fileIdle = retrieved + compileIndex;
 				}
 			}
 			// Attack Fail
 			else if (Utilities::IsSubrecord(a_file, "NAM9")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileEquip = retrieved;
+					fileEquip = retrieved + compileIndex;
 				}
 			}
 			// Attack Fail
 			else if (Utilities::IsSubrecord(a_file, "NAM8")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileUnEquip = retrieved;
+					fileUnEquip = retrieved + compileIndex;
+				}
+			}
+			// First Person Model
+			else if (Utilities::IsSubrecord(a_file, "WNAM")) {
+				RE::FormID retrieved = 0;
+				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
+					fileFirstPersonModel = retrieved + compileIndex;
+				}
+			}
+			// Model
+			else if (Utilities::IsSubrecord(a_file, "MODL")) {
+				std::string temp(a_file->actualChunkSize, '\0');
+				if (a_file->ReadData(temp.data(), temp.size())) {
+					fileModel = temp.c_str();
 				}
 			}
 		}
 
 		if (!readData.contains(formID)) {
 			auto newData = ReadData();
-			newData.baseModel = fileModel;
-			newData.baseFirstPersonMesh = fileFirstPersonModel;
 			newData.baseAttackFailSound = fileAttackFail;
 			newData.baseAttackLoopSound = fileAttackLoop;
 			newData.baseAttackSound = fileAttackSound;
@@ -228,6 +255,7 @@ namespace Hooks::WeaponPatcher
 		if (isOverwritingMasterVisuals || overwritesBaseTextures)
 		{
 			data.altModel = fileModel;
+			data.altFirstPersonMesh = fileFirstPersonModel;
 			data.visualOwner = fileName;
 			data.holdsData = true;
 		}
@@ -235,6 +263,12 @@ namespace Hooks::WeaponPatcher
 		{
 			data.altPickUpSound = filePickupSound;
 			data.altPutDownSound = filePutdownSound;
+			data.altAttackSound = fileAttackSound;
+			data.altAttackLoopSound = fileAttackLoop;
+			data.altAttackFailSound = fileAttackFail;
+			data.altIdleSound = fileIdle;
+			data.altEquipSound = fileEquip;
+			data.altUnEquipSound = fileUnEquip;
 			data.audioOwner = fileName;
 			data.holdsData = true;
 		}
@@ -244,7 +278,6 @@ namespace Hooks::WeaponPatcher
 		logger::info("Patching {} Weapons..."sv, readData.size());
 
 		std::unordered_map<RE::FormID, ReadData> filteredData;
-
 		for (auto& [id, data] : readData) {
 			if (!data.overwritten) {
 				continue;
@@ -308,14 +341,13 @@ namespace Hooks::WeaponPatcher
 			}
 			if (!data.visualOwner.empty()) {
 				auto* newFirstPersonModel = RE::TESForm::LookupByID<RE::TESObjectSTAT>(data.altFirstPersonMesh);
-
 				bool needsPatch = false;
 				needsPatch |= (data.altModel != obj->model) && !data.altModel.empty();
 				needsPatch |= (newFirstPersonModel != obj->firstPersonModelObject) && newFirstPersonModel;
 				patchedVisuals |= needsPatch;
 				if (needsPatch) {
-					obj->firstPersonModelObject = newFirstPersonModel;
-					obj->model = data.altModel;
+					obj->firstPersonModelObject = newFirstPersonModel ? newFirstPersonModel : obj->firstPersonModelObject;
+					obj->SetModel(data.altModel.c_str());
 				}
 			}
 			if (patchedAudio || patchedImpact || patchedVisuals) {
