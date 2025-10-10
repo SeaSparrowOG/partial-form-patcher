@@ -264,8 +264,7 @@ namespace Hooks::EffectPatcher
 		if (!data.overwritten) {
 			return;
 		}
-		bool patchedAudio = false;
-		bool patchedVisuals = false;
+
 		if (!data.audioOwner.empty()) {
 			auto* charge = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altChargingSound);
 			auto* ready = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altReadyLoopSound);
