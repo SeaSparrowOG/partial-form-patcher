@@ -75,111 +75,89 @@ namespace Hooks::WeaponPatcher
 		RE::FormID fileEquip= 0;
 		RE::FormID fileUnEquip = 0;
 
-		uint16_t lightToRemove = 0;
-		uint8_t normalToRemove = 0;
-		for (const auto* master : std::span(a_file->masterPtrs, a_file->masterCount)) {
-			if (master->compileIndex == 0xFF && master->IsLight()) {
-				++lightToRemove;
-			}
-			else {
-				++normalToRemove;
-			}
-		}
-
-		auto compileIndex = std::clamp((uint8_t)(a_file->compileIndex - normalToRemove), 
-			(uint8_t)0, 
-			(uint8_t)std::numeric_limits<uint8_t>::max()) 
-			<< 24;
-		if (a_file->compileIndex == 0xFE && a_file->IsLight()) {
-			compileIndex += std::clamp((uint16_t)(a_file->smallFileCompileIndex - lightToRemove),
-				(uint16_t)0,
-				(uint16_t)std::numeric_limits<uint16_t>::max())
-				<< 12;
-		}
-
 		while (a_file->SeekNextSubrecord()) {
 			// Pickup
 			if (Utilities::IsSubrecord(a_file, "YNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePickupSound = retrieved + compileIndex;
+					filePickupSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Put Down
 			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePutdownSound = retrieved + compileIndex;
+					filePutdownSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Block Impact Data Set
 			else if (Utilities::IsSubrecord(a_file, "BIDS")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileBlockBashImpactDataSet = retrieved + compileIndex;
+					fileBlockBashImpactDataSet = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Block Alternate Material
 			else if (Utilities::IsSubrecord(a_file, "BAMT")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileBlockAlternateMaterial = retrieved + compileIndex;
+					fileBlockAlternateMaterial = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Impact Data Set
 			else if (Utilities::IsSubrecord(a_file, "INAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileImpactDataSet = retrieved + compileIndex;
+					fileImpactDataSet = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Attack Sound
 			else if (Utilities::IsSubrecord(a_file, "SNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileAttackSound = retrieved + compileIndex;
+					fileAttackSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Attack Loop Sound 
 			else if (Utilities::IsSubrecord(a_file, "7NAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileAttackLoop = retrieved + compileIndex;
+					fileAttackLoop = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Attack Fail
 			else if (Utilities::IsSubrecord(a_file, "TNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileAttackFail = retrieved + compileIndex;
+					fileAttackFail = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Idle
 			else if (Utilities::IsSubrecord(a_file, "UNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileIdle = retrieved + compileIndex;
+					fileIdle = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Attack Fail
 			else if (Utilities::IsSubrecord(a_file, "NAM9")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileEquip = retrieved + compileIndex;
+					fileEquip = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Attack Fail
 			else if (Utilities::IsSubrecord(a_file, "NAM8")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileUnEquip = retrieved + compileIndex;
+					fileUnEquip = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// First Person Model
 			else if (Utilities::IsSubrecord(a_file, "WNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					fileFirstPersonModel = retrieved + compileIndex;
+					fileFirstPersonModel = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Model

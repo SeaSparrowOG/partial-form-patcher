@@ -46,6 +46,22 @@ namespace Utilities
 		}
 	}
 
+	inline static RE::FormID GetAbsoluteFormID(const RE::FormID a_formID, RE::TESFile* a_file)
+	{
+		auto* owner = a_file;
+		for (auto* master : std::span(a_file->masterPtrs, a_file->masterCount)) {
+			if (master && master->IsFormInMod(a_formID)) {
+				owner = master;
+				break;
+			}
+		}
+		if (owner->IsLight() && owner->compileIndex == 0xFE) {
+			return 0xFE000000 | (owner->smallFileCompileIndex << 12) | (a_formID & 0xFFF);
+		}
+		return (owner->compileIndex << 24) | (a_formID & 0x00FFFFFF);
+	}
+
+
 	inline static std::string RecordType(const uint32_t a_fourCC) {
 		char str[5];
 		str[0] = static_cast<char>(a_fourCC & 0xFF);

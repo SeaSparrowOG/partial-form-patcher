@@ -64,41 +64,19 @@ namespace Hooks::SoulGemPatcher
 		RE::FormID filePickupSound = 0;
 		RE::FormID filePutdownSound = 0;
 
-		uint16_t lightToRemove = 0;
-		uint8_t normalToRemove = 0;
-		for (const auto* master : std::span(a_file->masterPtrs, a_file->masterCount)) {
-			if (master->compileIndex == 0xFF && master->IsLight()) {
-				++lightToRemove;
-			}
-			else {
-				++normalToRemove;
-			}
-		}
-
-		auto compileIndex = std::clamp((uint8_t)(a_file->compileIndex - normalToRemove),
-			(uint8_t)0,
-			(uint8_t)std::numeric_limits<uint8_t>::max())
-			<< 24;
-		if (a_file->compileIndex == 0xFE && a_file->IsLight()) {
-			compileIndex += std::clamp((uint16_t)(a_file->smallFileCompileIndex - lightToRemove),
-				(uint16_t)0,
-				(uint16_t)std::numeric_limits<uint16_t>::max())
-				<< 12;
-		}
-
 		while (a_file->SeekNextSubrecord()) {
 			// Pickup
 			if (Utilities::IsSubrecord(a_file, "YNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePickupSound = retrieved + compileIndex;
+					filePickupSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Putdown
 			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePutdownSound = retrieved + compileIndex;
+					filePutdownSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Model
