@@ -12,13 +12,15 @@ namespace Hooks
 			inline static bool HookTESObjectBOOK();
 			inline static bool LoadBookFromFile(RE::TESObjectBOOK* a_this, RE::TESFile* a_file);
 			inline static REL::Relocation<decltype(LoadBookFromFile)> _load;
+			inline static bool _loadedAll{ false };
 		};
 
 		class BookCache :
 			public REX::Singleton<BookCache>
 		{
 		public:
-			void OnBookLoaded(RE::TESObjectBOOK* a_book, RE::TESFile* a_file);
+			void OnBookLoaded(RE::TESObjectBOOK* a_obj, RE::TESFile* a_file);
+			void ReapplyChanges(RE::TESObjectBOOK* a_obj);
 			void PatchBookObjects();
 
 		private:

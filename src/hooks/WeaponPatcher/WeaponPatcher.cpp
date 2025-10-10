@@ -26,25 +26,30 @@ namespace Hooks::WeaponPatcher
 	inline bool Weapon::LoadWeaponFromFile(RE::TESObjectWEAP* a_this, 
 		RE::TESFile* a_file)
 	{
+		auto* manager = WeaponCache::GetSingleton();
+		if (_loadedAll) {
+			auto response = _load(a_this, a_file);
+			if (manager) {
+				manager->ReapplyChanges(a_this);
+			}
+			return response;
+		}
+
 		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
-		if (result && a_this && duplicate) {
-			auto* manager = WeaponCache::GetSingleton();
-			if (manager) {
-				if (!duplicate->Seek(0)) {
-					logger::error("Failed to seek 0 for weapon at {:0X}."sv, a_this->formID);
-					return result;
-				}
-				bool found = false;
-				auto formID = a_this->formID;
-				while (!found && duplicate->SeekNextForm(true)) {
-					if (duplicate->currentform.formID != formID) {
-						continue;
-					}
-					found = true;
-				}
-				manager->OnWeaponLoaded(a_this, duplicate);
+		if (result && a_this && duplicate && manager) {
+			if (!duplicate->Seek(0)) {
+				SKSE::stl::report_and_fail("Failed to seek 0"sv);
 			}
+			bool found = false;
+			auto formID = a_this->formID;
+			while (!found && duplicate->SeekNextForm(true)) {
+				if (duplicate->currentform.formID != formID) {
+					continue;
+				}
+				found = true;
+			}
+			manager->OnWeaponLoaded(a_this, duplicate);
 		}
 		return result;
 	}
@@ -252,6 +257,72 @@ namespace Hooks::WeaponPatcher
 		}
 	}
 
+	void WeaponCache::ReapplyChanges(RE::TESObjectWEAP* a_obj)
+	{
+		auto formID = a_obj->formID;
+		if (!readData.contains(formID)) {
+			return;
+		}
+		auto& data = readData.at(formID);
+		if (!data.overwritten) {
+			return;
+		}
+
+		if (!data.audioOwner.empty()) {
+			auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
+			auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
+			auto* attack = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altAttackSound);
+			auto* attackLoop = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altAttackLoopSound);
+			auto* attackFail = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altAttackFailSound);
+			auto* idle = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altIdleSound);
+			auto* equip = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altEquipSound);
+			auto* unEquip = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altUnEquipSound);
+			bool needsPatch = false;
+			needsPatch |= (putDown != a_obj->putdownSound) && putDown;
+			needsPatch |= (pickUp != a_obj->pickupSound) && pickUp;
+			needsPatch |= (attack != a_obj->attackSound) && attack;
+			needsPatch |= (attackLoop != a_obj->attackLoopSound) && attackLoop;
+			needsPatch |= (attackFail != a_obj->attackFailSound) && attackFail;
+			needsPatch |= (idle != a_obj->idleSound) && idle;
+			needsPatch |= (equip != a_obj->equipSound) && equip;
+			needsPatch |= (unEquip != a_obj->unequipSound) && unEquip;
+			if (needsPatch) {
+				a_obj->pickupSound = pickUp;
+				a_obj->putdownSound = putDown;
+				a_obj->attackSound = attack;
+				a_obj->attackLoopSound = attackLoop;
+				a_obj->attackFailSound = attackFail;
+				a_obj->idleSound = idle;
+				a_obj->equipSound = equip;
+				a_obj->unequipSound = unEquip;
+			}
+		}
+		if (!data.impactOwner.empty()) {
+			auto* impactDataSet = RE::TESForm::LookupByID<RE::BGSImpactDataSet>(data.altImpactDataSet);
+			auto* blockBashDataSet = RE::TESForm::LookupByID<RE::BGSImpactDataSet>(data.altBlockBashImpactDataSet);
+			auto* blockMaterial = RE::TESForm::LookupByID<RE::BGSMaterialType>(data.altBlockAlternateMaterial);
+			bool needsPatch = false;
+			needsPatch |= (impactDataSet != a_obj->impactDataSet) && impactDataSet;
+			needsPatch |= (blockBashDataSet != a_obj->blockBashImpactDataSet) && blockBashDataSet;
+			needsPatch |= (blockMaterial != a_obj->altBlockMaterialType) && blockMaterial;
+			if (needsPatch) {
+				a_obj->impactDataSet = impactDataSet;
+				a_obj->blockBashImpactDataSet = blockBashDataSet;
+				a_obj->altBlockMaterialType = blockMaterial;
+			}
+		}
+		if (!data.visualOwner.empty()) {
+			auto* newFirstPersonModel = RE::TESForm::LookupByID<RE::TESObjectSTAT>(data.altFirstPersonMesh);
+			bool needsPatch = false;
+			needsPatch |= (data.altModel != a_obj->model) && !data.altModel.empty();
+			needsPatch |= (newFirstPersonModel != a_obj->firstPersonModelObject) && newFirstPersonModel;
+			if (needsPatch) {
+				a_obj->firstPersonModelObject = newFirstPersonModel ? newFirstPersonModel : a_obj->firstPersonModelObject;
+				a_obj->SetModel(data.altModel.c_str());
+			}
+		}
+	}
+
 	void WeaponCache::OnDataLoaded() {
 		logger::info("Patching {} Weapons..."sv, readData.size());
 
@@ -356,6 +427,7 @@ namespace Hooks::WeaponPatcher
 				}
 			}
 		}
+		Weapon::_loadedAll = true;
 		readData = std::move(filteredData);
 		logger::info("Finished; Applied {} patches."sv, readData.size());
 	}

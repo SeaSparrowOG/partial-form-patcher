@@ -75,26 +75,32 @@ namespace Hooks::EffectPatcher
 	}
 
 	bool Effect::LoadEffectSetting(RE::EffectSetting* a_this, RE::TESFile* a_file) {
-        auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
-        bool result = _load(a_this, a_file);
-        if (result && a_this && duplicate) {
-            auto* manager = EffectCache::GetSingleton();
-            if (manager) {
-                if (!duplicate->Seek(0)) {
-                    SKSE::stl::report_and_fail("Failed to seek 0"sv);
-                }
-                bool found = false;
-                auto formID = a_this->formID;
-                while (!found && duplicate->SeekNextForm(true)) {
-                    if (duplicate->currentform.formID != formID) {
-                        continue;
-                    }
-                    found = true;
-                }
-                manager->OnEffectSettingLoaded(a_this, duplicate);
-            }
-        }
-        return result;
+		auto* manager = EffectCache::GetSingleton();
+		if (_loadedAll) {
+			auto response = _load(a_this, a_file);
+			if (manager) {
+				manager->ReapplyChanges(a_this);
+			}
+			return response;
+		}
+
+		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
+		bool result = _load(a_this, a_file);
+		if (result && a_this && duplicate && manager) {
+			if (!duplicate->Seek(0)) {
+				SKSE::stl::report_and_fail("Failed to seek 0"sv);
+			}
+			bool found = false;
+			auto formID = a_this->formID;
+			while (!found && duplicate->SeekNextForm(true)) {
+				if (duplicate->currentform.formID != formID) {
+					continue;
+				}
+				found = true;
+			}
+			manager->OnEffectSettingLoaded(a_this, duplicate);
+		}
+		return result;
 	}
 
 	void PerformDataLoadedOp() {
@@ -247,6 +253,118 @@ namespace Hooks::EffectPatcher
 			data.holdsData = true;
 		}
     }
+
+	void EffectCache::ReapplyChanges(RE::EffectSetting* a_obj)
+	{
+		auto formID = a_obj->formID;
+		if (!readData.contains(formID)) {
+			return;
+		}
+		auto& data = readData.at(formID);
+		if (!data.overwritten) {
+			return;
+		}
+		bool patchedAudio = false;
+		bool patchedVisuals = false;
+		if (!data.audioOwner.empty()) {
+			auto* charge = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altChargingSound);
+			auto* ready = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altReadyLoopSound);
+			auto* release = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altReleaseSound);
+			auto* cast = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altCastLoopSound);
+			RE::BGSSoundDescriptorForm* currCharge = nullptr;
+			RE::BGSSoundDescriptorForm* currReady = nullptr;
+			RE::BGSSoundDescriptorForm* currRelease = nullptr;
+			RE::BGSSoundDescriptorForm* currCast = nullptr;
+			for (auto& soundPair : a_obj->effectSounds) {
+				switch (soundPair.id) {
+				case RE::MagicSystem::SoundID::kCharge:
+					currCharge = soundPair.sound;
+					break;
+				case RE::MagicSystem::SoundID::kReadyLoop:
+					currReady = soundPair.sound;
+					break;
+				case RE::MagicSystem::SoundID::kRelease:
+					currRelease = soundPair.sound;
+					break;
+				case RE::MagicSystem::SoundID::kCastLoop:
+					currCast = soundPair.sound;
+					break;
+				default:
+					break;
+				}
+			}
+			bool needsPatch = false;
+			needsPatch |= (charge != currCharge) && charge;
+			needsPatch |= (ready != currReady) && ready;
+			needsPatch |= (release != currRelease) && release;
+			needsPatch |= (cast != currCast) && cast;
+			if (needsPatch) {
+				auto& arr = a_obj->effectSounds;
+				arr.clear();
+				if (charge) {
+					auto newPair = RE::EffectSetting::SoundPair();
+					newPair.id = RE::MagicSystem::SoundID::kCharge;
+					newPair.sound = charge;
+					arr.push_back(newPair);
+				}
+				if (ready) {
+					auto newPair = RE::EffectSetting::SoundPair();
+					newPair.id = RE::MagicSystem::SoundID::kReadyLoop;
+					newPair.sound = ready;
+					arr.push_back(newPair);
+				}
+				if (release) {
+					auto newPair = RE::EffectSetting::SoundPair();
+					newPair.id = RE::MagicSystem::SoundID::kRelease;
+					newPair.sound = release;
+					arr.push_back(newPair);
+				}
+				if (cast) {
+					auto newPair = RE::EffectSetting::SoundPair();
+					newPair.id = RE::MagicSystem::SoundID::kCastLoop;
+					newPair.sound = cast;
+					arr.push_back(newPair);
+				}
+			}
+		}
+
+		if (!data.visualOwner.empty()) {
+			bool needsPatch = false;
+			auto* light = RE::TESForm::LookupByID<RE::TESObjectLIGH>(data.altLight);
+			auto* effectShader = RE::TESForm::LookupByID<RE::TESEffectShader>(data.altEffectShader);
+			auto* enchantShader = RE::TESForm::LookupByID<RE::TESEffectShader>(data.altEnchantShader);
+			auto* castingArt = RE::TESForm::LookupByID<RE::BGSArtObject>(data.altCastingArt);
+			auto* hitEffectArt = RE::TESForm::LookupByID<RE::BGSArtObject>(data.altHitEffectArt);
+			auto* impactDataSet = RE::TESForm::LookupByID<RE::BGSImpactDataSet>(data.altImpactDataSet);
+			auto* enchantEffectArt = RE::TESForm::LookupByID<RE::BGSArtObject>(data.altEnchantEffectArt);
+			auto* hitVisuals = RE::TESForm::LookupByID<RE::BGSReferenceEffect>(data.altHitVisuals);
+			auto* enchantVisuals = RE::TESForm::LookupByID<RE::BGSReferenceEffect>(data.altEnchantVisuals);
+			auto* imageSpaceMod = RE::TESForm::LookupByID<RE::TESImageSpaceModifier>(data.altImageSpaceMod);
+			auto& effectData = a_obj->data;
+			needsPatch |= (light != effectData.light) && light;
+			needsPatch |= (effectShader != effectData.effectShader) && effectShader;
+			needsPatch |= (enchantShader != effectData.enchantShader) && enchantShader;
+			needsPatch |= (castingArt != effectData.castingArt) && castingArt;
+			needsPatch |= (hitEffectArt != effectData.hitEffectArt) && hitEffectArt;
+			needsPatch |= (impactDataSet != effectData.impactDataSet) && impactDataSet;
+			needsPatch |= (enchantEffectArt != effectData.enchantEffectArt) && enchantEffectArt;
+			needsPatch |= (hitVisuals != effectData.hitVisuals) && hitVisuals;
+			needsPatch |= (enchantVisuals != effectData.enchantVisuals) && enchantVisuals;
+			needsPatch |= (imageSpaceMod != effectData.imageSpaceMod) && imageSpaceMod;
+			if (needsPatch) {
+				effectData.light = light ? light : effectData.light;
+				effectData.effectShader = effectShader ? effectShader : effectData.effectShader;
+				effectData.enchantShader = enchantShader ? enchantShader : effectData.enchantShader;
+				effectData.castingArt = castingArt ? castingArt : effectData.castingArt;
+				effectData.hitEffectArt = hitEffectArt ? hitEffectArt : effectData.hitEffectArt;
+				effectData.impactDataSet = impactDataSet ? impactDataSet : effectData.impactDataSet;
+				effectData.enchantEffectArt = enchantEffectArt ? enchantEffectArt : effectData.enchantEffectArt;
+				effectData.hitVisuals = hitVisuals ? hitVisuals : effectData.hitVisuals;
+				effectData.enchantVisuals = enchantVisuals ? enchantVisuals : effectData.enchantVisuals;
+				effectData.imageSpaceMod = imageSpaceMod ? imageSpaceMod : effectData.imageSpaceMod;
+			}
+		}
+	}
 
 	void EffectCache::PatchEffectSettings()
 	{
@@ -413,6 +531,7 @@ namespace Hooks::EffectPatcher
 			}
 		}
 		readData = std::move(filteredData);
+		Effect::_loadedAll = true;
 		logger::info("Finished; Applied {} patches."sv, readData.size());
 	}
 }

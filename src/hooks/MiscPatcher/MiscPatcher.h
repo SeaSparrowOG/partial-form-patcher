@@ -12,12 +12,14 @@ namespace Hooks
 			inline static bool HookTESObjectMISC();
 			inline static bool LoadMiscObject(RE::TESObjectMISC* a_this, RE::TESFile* a_file);
 			inline static REL::Relocation<decltype(LoadMiscObject)> _load;
+			inline static bool _loadedAll{ false };
 		};
 
 		class MiscObjectCache : public REX::Singleton<MiscObjectCache>
 		{
 		public:
 			void OnMiscObjectLoaded(RE::TESObjectMISC* a_obj, RE::TESFile* a_file);
+			void ReapplyChanges(RE::TESObjectMISC* a_obj);
 			void PatchMiscObjects();
 
 		private:

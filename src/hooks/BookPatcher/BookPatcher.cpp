@@ -32,24 +32,30 @@ namespace Hooks::BookPatcher
 	}
 
 	inline bool Book::LoadBookFromFile(RE::TESObjectBOOK* a_this, RE::TESFile* a_file) {
+		auto* manager = BookCache::GetSingleton();
+		if (_loadedAll) {
+			auto response = _load(a_this, a_file);
+			if (manager) {
+				manager->ReapplyChanges(a_this);
+			}
+			return response;
+		}
+
 		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
-		if (result && a_this && duplicate) {
-			auto* manager = BookCache::GetSingleton();
-			if (manager) {
-				if (!duplicate->Seek(0)) {
-					SKSE::stl::report_and_fail("Failed to seek 0"sv);
-				}
-				bool found = false;
-				auto formID = a_this->formID;
-				while (!found && duplicate->SeekNextForm(true)) {
-					if (duplicate->currentform.formID != formID) {
-						continue;
-					}
-					found = true;
-				}
-				manager->OnBookLoaded(a_this, duplicate);
+		if (result && a_this && duplicate && manager) {
+			if (!duplicate->Seek(0)) {
+				SKSE::stl::report_and_fail("Failed to seek 0"sv);
 			}
+			bool found = false;
+			auto formID = a_this->formID;
+			while (!found && duplicate->SeekNextForm(true)) {
+				if (duplicate->currentform.formID != formID) {
+					continue;
+				}
+				found = true;
+			}
+			manager->OnBookLoaded(a_this, duplicate);
 		}
 		return result;
 	}
@@ -153,6 +159,42 @@ namespace Hooks::BookPatcher
 		}
 	}
 
+	void BookCache::ReapplyChanges(RE::TESObjectBOOK* a_obj)
+	{
+		auto id = a_obj->formID;
+		if (!readData.contains(id)) {
+			return;
+		}
+		auto& data = readData.at(id);
+		if (!data.overwritten) {
+			return;
+		}
+		bool patchedAudio = false;
+		bool patchedVisuals = false;
+		if (!data.audioOwner.empty()) {
+			auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
+			auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
+
+			bool needsPatch = false;
+			needsPatch |= (putDown != a_obj->putdownSound) && putDown;
+			needsPatch |= (pickUp != a_obj->pickupSound) && pickUp;
+
+			if (needsPatch) {
+				a_obj->pickupSound = pickUp;
+				a_obj->putdownSound = putDown;
+			}
+			patchedAudio |= needsPatch;
+		}
+		if (!data.visualOwner.empty()) {
+			bool needsPatch = false;
+			needsPatch |= (data.altModel != a_obj->model) && !data.altModel.empty();
+			patchedVisuals |= needsPatch;
+			if (needsPatch) {
+				a_obj->SetModel(data.altModel.c_str());
+			}
+		}
+	}
+
 	void BookCache::PatchBookObjects()
 	{
 		logger::info("Patching {} Books..."sv, readData.size());
@@ -207,6 +249,7 @@ namespace Hooks::BookPatcher
 			}
 		}
 		readData = std::move(filteredData);
+		Book::_loadedAll = true;
 		logger::info("Finished; Applied {} patches."sv, readData.size());
 	}
 }

@@ -12,6 +12,7 @@ namespace Hooks
 			inline static bool HookSoulGem();
 			inline static bool LoadSoulGemFromFile(RE::TESSoulGem* a_this, RE::TESFile* a_file);
 			inline static REL::Relocation<decltype(LoadSoulGemFromFile)> _load;
+			inline static bool _loadedAll{ false };
 		};
 
 		class SoulGemCache :
@@ -19,6 +20,7 @@ namespace Hooks
 		{
 		public:
 			void OnSoulGemLoaded(RE::TESSoulGem * a_obj, RE::TESFile* a_file);
+			void ReapplyChanges(RE::TESSoulGem* a_obj);
 			void OnDataLoaded();
 				
 		private:

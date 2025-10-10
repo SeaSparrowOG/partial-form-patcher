@@ -12,12 +12,14 @@ namespace Hooks
 			inline static bool HookEffectSetting();
 			inline static bool LoadEffectSetting(RE::EffectSetting* a_this, RE::TESFile* a_file);
 			inline static REL::Relocation<decltype(LoadEffectSetting)> _load;
+			inline static bool _loadedAll{ false };
 		};
 
 		class EffectCache : public REX::Singleton<EffectCache>
 		{
 		public:
 			void OnEffectSettingLoaded(RE::EffectSetting* a_obj, RE::TESFile* a_file);
+			void ReapplyChanges(RE::EffectSetting* a_obj);
 			void PatchEffectSettings();
 
 		private:

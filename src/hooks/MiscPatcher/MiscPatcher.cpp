@@ -30,24 +30,30 @@ namespace Hooks::MiscPatcher
 	}
 
 	inline bool Misc::LoadMiscObject(RE::TESObjectMISC* a_this, RE::TESFile* a_file) {
+		auto* manager = MiscObjectCache::GetSingleton();
+		if (_loadedAll) {
+			auto response = _load(a_this, a_file);
+			if (manager) {
+				manager->ReapplyChanges(a_this);
+			}
+			return response;
+		}
+
 		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
-		if (result && a_this && duplicate) {
-			auto* manager = MiscObjectCache::GetSingleton();
-			if (manager) {
-				if (!duplicate->Seek(0)) {
-					SKSE::stl::report_and_fail("Failed to seek 0"sv);
-				}
-				bool found = false;
-				auto formID = a_this->formID;
-				while (!found && duplicate->SeekNextForm(true)) {
-					if (duplicate->currentform.formID != formID) {
-						continue;
-					}
-					found = true;
-				}
-				manager->OnMiscObjectLoaded(a_this, duplicate);
+		if (result && a_this && duplicate && manager) {
+			if (!duplicate->Seek(0)) {
+				SKSE::stl::report_and_fail("Failed to seek 0"sv);
 			}
+			bool found = false;
+			auto formID = a_this->formID;
+			while (!found && duplicate->SeekNextForm(true)) {
+				if (duplicate->currentform.formID != formID) {
+					continue;
+				}
+				found = true;
+			}
+			manager->OnMiscObjectLoaded(a_this, duplicate);
 		}
 		return result;
 	}
@@ -129,6 +135,40 @@ namespace Hooks::MiscPatcher
 		}
 	}
 
+	void MiscObjectCache::ReapplyChanges(RE::TESObjectMISC* a_obj)
+	{
+		auto formID = a_obj->formID;
+		if (!readData.contains(formID)) {
+			return;
+		}
+		auto& data = readData.at(formID);
+		if (!data.overwritten) {
+			return;
+		}
+		bool patchedAudio = false;
+		bool patchedVisuals = false;
+		if (!data.audioOwner.empty()) {
+			auto* putDown = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPutDownSound);
+			auto* pickUp = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(data.altPickUpSound);
+			bool needsPatch = false;
+			needsPatch |= (putDown != a_obj->putdownSound) && putDown;
+			needsPatch |= (pickUp != a_obj->pickupSound) && pickUp;
+			if (needsPatch) {
+				a_obj->pickupSound = pickUp;
+				a_obj->putdownSound = putDown;
+			}
+			patchedAudio |= needsPatch;
+		}
+		if (!data.visualOwner.empty()) {
+			bool needsPatch = false;
+			needsPatch |= (data.altModel != a_obj->model) && !data.altModel.empty();
+			patchedVisuals |= needsPatch;
+			if (needsPatch) {
+				a_obj->SetModel(data.altModel.c_str());
+			}
+		}
+	}
+
 	void MiscObjectCache::PatchMiscObjects()
 	{
 		logger::info("Patching {} Misc Objects..."sv, readData.size());
@@ -183,6 +223,7 @@ namespace Hooks::MiscPatcher
 			}
 		}
 		readData = std::move(filteredData);
+		Misc::_loadedAll = true;
 		logger::info("Finished; Applied {} patches."sv, readData.size());
 	}
 }

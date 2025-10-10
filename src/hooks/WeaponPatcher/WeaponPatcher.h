@@ -12,6 +12,7 @@ namespace Hooks
 			inline static bool HookTESObjectWEAP();
 			inline static bool LoadWeaponFromFile(RE::TESObjectWEAP* a_this, RE::TESFile* a_file);
 			inline static REL::Relocation<decltype(LoadWeaponFromFile)> _load;
+			inline static bool _loadedAll{ false };
 		};
 
 		class WeaponCache :
@@ -19,6 +20,7 @@ namespace Hooks
 		{
 		public:
 			void OnWeaponLoaded(RE::TESObjectWEAP* a_obj, RE::TESFile* a_file);
+			void ReapplyChanges(RE::TESObjectWEAP* a_obj);
 			void OnDataLoaded();
 
 		private:
