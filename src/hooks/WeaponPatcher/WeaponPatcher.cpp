@@ -352,17 +352,30 @@ namespace Hooks::WeaponPatcher
 			}
 			if (patchedAudio || patchedImpact || patchedVisuals) {
 				filteredData.emplace(id, data);
-				std::string changes = "";
+				
+				logger::info("  >Patched weapon {} at {:0X}. Changes:"sv, obj->GetName(), id);
 				if (patchedVisuals) {
-					changes += " Visuals: " + std::string(data.visualOwner);
+					logger::info("    -Visuals from {}"sv, data.visualOwner);
+					logger::info("      >Model: {}"sv, obj->model.c_str());
+					logger::info("      >First Person Model: {:0X}"sv, obj->firstPersonModelObject ? obj->firstPersonModelObject->formID : 0);
 				}
 				if (patchedImpact) {
-					changes += " Impact " + std::string(data.impactOwner);
+					logger::info("    -Impact from {}"sv, data.impactOwner);
+					logger::info("      >Impact Data Set: {:0X}"sv, obj->impactDataSet ? obj->impactDataSet->formID : 0);
+					logger::info("      >Block Bash Data Set: {:0X}"sv, obj->blockBashImpactDataSet ? obj->blockBashImpactDataSet->formID : 0);
+					logger::info("      >Block Alternate Material: {:0X}"sv, obj->altBlockMaterialType ? obj->altBlockMaterialType->formID : 0);
 				}
 				if (patchedAudio) {
-					changes += " Audio " + std::string(data.audioOwner);
+					logger::info("    -Audio from {}"sv, data.audioOwner);
+					logger::info("      >Pickup: {:0X}"sv, obj->pickupSound ? obj->pickupSound->formID : 0);
+					logger::info("      >Putdown: {:0X}"sv, obj->putdownSound ? obj->putdownSound->formID : 0);
+					logger::info("      >Attack: {:0X}"sv, obj->attackSound ? obj->attackSound->formID : 0);
+					logger::info("      >Attack Loop: {:0X}"sv, obj->attackLoopSound ? obj->attackLoopSound->formID : 0);
+					logger::info("      >Attack Fail: {:0X}"sv, obj->attackFailSound ? obj->attackFailSound->formID : 0);
+					logger::info("      >Idle: {:0X}"sv, obj->idleSound ? obj->idleSound->formID : 0);
+					logger::info("      >Equip: {:0X}"sv, obj->equipSound ? obj->equipSound->formID : 0);
+					logger::info("      >UnEquip: {:0X}"sv, obj->unequipSound ? obj->unequipSound->formID : 0);
 				}
-				logger::info("  >Patched weapon {} at {:0X}. Changes:{}"sv, obj->GetName(), id, changes);
 			}
 		}
 		readData = std::move(filteredData);

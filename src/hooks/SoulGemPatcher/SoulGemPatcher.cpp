@@ -194,14 +194,17 @@ namespace Hooks::SoulGemPatcher
 			}
 			if (patchedAudio || patchedVisuals) {
 				filteredData.emplace(id, data);
-				std::string changes = "";
+
+				logger::info("  >Patched Soul Gem {} at {:0X}. Changes:"sv, obj->GetName(), id);
 				if (patchedVisuals) {
-					changes += " Visuals: " + std::string(data.visualOwner);
+					logger::info("    -Visuals from {}"sv, data.visualOwner);
+					logger::info("      >Model: {}"sv, obj->model.c_str());
 				}
 				if (patchedAudio) {
-					changes += " Audio " + std::string(data.audioOwner);
+					logger::info("    -Audio from {}"sv, data.audioOwner);
+					logger::info("      >Pickup: {:0X}"sv, obj->pickupSound ? obj->pickupSound->formID : 0);
+					logger::info("      >Putdown: {:0X}"sv, obj->putdownSound ? obj->putdownSound->formID : 0);
 				}
-				logger::info("  >Patched misc object {} at {:0X}. Changes:{}"sv, obj->GetName(), id, changes);
 			}
 		}
 		readData = std::move(filteredData);
