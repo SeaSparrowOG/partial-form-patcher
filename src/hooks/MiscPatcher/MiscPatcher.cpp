@@ -54,6 +54,7 @@ namespace Hooks::MiscPatcher
 				found = true;
 			}
 			manager->OnMiscObjectLoaded(a_this, duplicate);
+			duplicate->CloseTES(true);
 		}
 		return result;
 	}

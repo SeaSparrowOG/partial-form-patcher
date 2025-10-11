@@ -50,6 +50,7 @@ namespace Hooks::SoulGemPatcher
 				found = true;
 			}
 			manager->OnSoulGemLoaded(a_this, duplicate);
+			duplicate->CloseTES(true);
 		}
 		return result;
 	}

@@ -99,6 +99,7 @@ namespace Hooks::EffectPatcher
 				found = true;
 			}
 			manager->OnEffectSettingLoaded(a_this, duplicate);
+			duplicate->CloseTES(true);
 		}
 		return result;
 	}

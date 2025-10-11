@@ -50,6 +50,7 @@ namespace Hooks::WeaponPatcher
 				found = true;
 			}
 			manager->OnWeaponLoaded(a_this, duplicate);
+			duplicate->CloseTES(true);
 		}
 		return result;
 	}
