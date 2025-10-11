@@ -11,7 +11,7 @@
       "hidden": true,
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
-        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /external:anglebrackets /external:W0 $penv{CXXFLAGS}"
+        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /external:anglebrackets /external:W0 $env{CXXFLAGS}"
       }
     },
     {
@@ -81,7 +81,7 @@
       }
     },
     {
-      "name": "Outdated",
+      "name": "vs2022-windows-vcpkg-release-outdated",
       "inherits": [
         "cmake-dev",
         "vcpkg",
@@ -107,16 +107,21 @@
       }
     }
   ],
-    "buildPresets": [
-        {
-            "name": "Release",
-            "configurePreset": "vs2022-windows-vcpkg-release",
-            "configuration": "Release"
-        },
-        {
-            "name": "Test",
-            "configurePreset": "vs2022-windows-vcpkg-test",
-            "configuration": "Debug"
-        }
-    ]
+  "buildPresets": [
+    {
+      "name": "Release",
+      "configurePreset": "vs2022-windows-vcpkg-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "Test",
+      "configurePreset": "vs2022-windows-vcpkg-test",
+      "configuration": "Debug"
+    },
+    {
+      "name": "Outdated",
+      "configurePreset": "vs2022-windows-vcpkg-release-outdated",
+      "configuration": "Release"
+    }
+  ]
 }
