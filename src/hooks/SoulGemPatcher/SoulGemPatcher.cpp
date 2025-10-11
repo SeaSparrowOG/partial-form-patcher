@@ -217,15 +217,15 @@ namespace Hooks::SoulGemPatcher
 			if (patchedAudio || patchedVisuals) {
 				filteredData.emplace(id, data);
 
-				logger::info("  >Patched Soul Gem {} at {:0X}. Changes:"sv, obj->GetName(), id);
+				logger::info("  >Patched Soul Gem {}. Changes:"sv, Utilities::GetFormattedName(obj));
 				if (patchedVisuals) {
 					logger::info("    -Visuals from {}"sv, data.visualOwner);
 					logger::info("      >Model: {}"sv, obj->model.c_str());
 				}
 				if (patchedAudio) {
 					logger::info("    -Audio from {}"sv, data.audioOwner);
-					logger::info("      >Pickup: {:0X}"sv, obj->pickupSound ? obj->pickupSound->formID : 0);
-					logger::info("      >Putdown: {:0X}"sv, obj->putdownSound ? obj->putdownSound->formID : 0);
+					logger::info("      >Pickup: {}"sv, Utilities::GetFormattedName(obj->pickupSound));
+					logger::info("      >Putdown: {}"sv, Utilities::GetFormattedName(obj->putdownSound));
 				}
 			}
 		}

@@ -497,32 +497,32 @@ namespace Hooks::EffectPatcher
 				logger::info("  >Patched Effect {} at {:0X}. Changes:"sv, obj->GetName(), id);
 				if (patchedVisuals) {
 					logger::info("    -Visuals from {}"sv, data.visualOwner);
-					logger::info("      >Light: {:0X}"sv, obj->data.light ? obj->data.light->formID : 0);
-					logger::info("      >Effect Shader: {:0X}"sv, obj->data.effectShader ? obj->data.effectShader->formID : 0);
-					logger::info("      >Enchant Shader: {:0X}"sv, obj->data.enchantShader ? obj->data.enchantShader->formID : 0);
-					logger::info("      >Casting Art: {:0X}"sv, obj->data.castingArt ? obj->data.castingArt->formID : 0);
-					logger::info("      >Hit Effect Art: {:0X}"sv, obj->data.hitEffectArt ? obj->data.hitEffectArt->formID : 0);
-					logger::info("      >Impact Data Set: {:0X}"sv, obj->data.impactDataSet ? obj->data.impactDataSet->formID : 0);
-					logger::info("      >Enchant Effect Art: {:0X}"sv, obj->data.enchantEffectArt ? obj->data.enchantEffectArt->formID : 0);
-					logger::info("      >Hit Visuals: {:0X}"sv, obj->data.hitVisuals ? obj->data.hitVisuals->formID : 0);
-					logger::info("      >Enchant Visuals: {:0X}"sv, obj->data.enchantVisuals ? obj->data.enchantVisuals->formID : 0);
-					logger::info("      >Image Space Mod: {:0X}"sv, obj->data.imageSpaceMod ? obj->data.imageSpaceMod->formID : 0);
+					logger::info("      >Light: {}"sv, Utilities::GetFormattedName(obj->data.light));
+					logger::info("      >Effect Shader: {}"sv, Utilities::GetFormattedName(obj->data.effectShader));
+					logger::info("      >Enchant Shader: {}"sv, Utilities::GetFormattedName(obj->data.enchantShader));
+					logger::info("      >Casting Art: {}"sv, Utilities::GetFormattedName(obj->data.castingArt));
+					logger::info("      >Hit Effect Art: {}"sv, Utilities::GetFormattedName(obj->data.hitEffectArt));
+					logger::info("      >Impact Data Set: {}"sv, Utilities::GetFormattedName(obj->data.impactDataSet));
+					logger::info("      >Enchant Effect Art: {}"sv, Utilities::GetFormattedName(obj->data.enchantEffectArt));
+					logger::info("      >Hit Visuals: {}"sv, Utilities::GetFormattedName(obj->data.hitVisuals));
+					logger::info("      >Enchant Visuals: {}"sv, Utilities::GetFormattedName(obj->data.enchantVisuals));
+					logger::info("      >Image Space Mod: {}"sv, Utilities::GetFormattedName(obj->data.imageSpaceMod));
 				}
 				if (patchedAudio) {
 					logger::info("    -Audio from {}"sv, data.audioOwner);
 					for (auto& soundPair : obj->effectSounds) {
 						switch (soundPair.id) {
 						case RE::MagicSystem::SoundID::kCharge:
-							logger::info("      >Charging Sound: {:0X}"sv, soundPair.sound ? soundPair.sound->formID : 0);
+							logger::info("      >Charging Sound: {}"sv, Utilities::GetFormattedName(soundPair.sound));
 							break;
 						case RE::MagicSystem::SoundID::kReadyLoop:
-							logger::info("      >Ready Loop Sound: {:0X}"sv, soundPair.sound ? soundPair.sound->formID : 0);
+							logger::info("      >Ready Loop Sound: {}"sv, Utilities::GetFormattedName(soundPair.sound));
 							break;
 						case RE::MagicSystem::SoundID::kRelease:
-							logger::info("      >Release Sound: {:0X}"sv, soundPair.sound ? soundPair.sound->formID : 0);
+							logger::info("      >Release Sound: {}"sv, Utilities::GetFormattedName(soundPair.sound));
 							break;
 						case RE::MagicSystem::SoundID::kCastLoop:
-							logger::info("      >Cast Loop Sound: {:0X}"sv, soundPair.sound ? soundPair.sound->formID : 0);
+							logger::info("      >Cast Loop Sound: {}"sv, Utilities::GetFormattedName(soundPair.sound));
 							break;
 						default:
 							break;

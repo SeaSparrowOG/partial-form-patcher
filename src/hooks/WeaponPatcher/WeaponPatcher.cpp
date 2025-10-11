@@ -404,7 +404,7 @@ namespace Hooks::WeaponPatcher
 			if (patchedAudio || patchedImpact || patchedVisuals) {
 				filteredData.emplace(id, data);
 				
-				logger::info("  >Patched weapon {} at {:0X}. Changes:"sv, obj->GetName(), id);
+				logger::info("  >Patched weapon {}. Changes:"sv, Utilities::GetFormattedName(obj));
 				if (patchedVisuals) {
 					logger::info("    -Visuals from {}"sv, data.visualOwner);
 					logger::info("      >Model: {}"sv, obj->model.c_str());
