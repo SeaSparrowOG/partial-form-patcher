@@ -44,9 +44,6 @@ namespace Hooks::BookPatcher
 		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
 		if (result && a_this && duplicate && manager) {
-			if (!duplicate->Seek(0)) {
-				SKSE::stl::report_and_fail("Failed to seek 0"sv);
-			}
 			bool found = false;
 			auto formID = a_this->formID;
 			while (!found && duplicate->SeekNextForm(true)) {
@@ -55,8 +52,12 @@ namespace Hooks::BookPatcher
 				}
 				found = true;
 			}
+			if (!found) {
+				//duplicate->CloseTES(true);
+				return result;
+			}
 			manager->OnBookLoaded(a_this, duplicate);
-			duplicate->CloseTES(true);
+			//duplicate->CloseTES(true);
 		}
 		return result;
 	}
@@ -88,7 +89,7 @@ namespace Hooks::BookPatcher
 			// Model
 			else if (Utilities::IsSubrecord(a_file, "MODL")) {
 				std::string temp(a_file->actualChunkSize, '\0');
-				if (a_file->ReadData(temp.data(), temp.size())) {
+				if (a_file->ReadData(temp.data(), a_file->actualChunkSize)) {
 					fileModel = temp.c_str();
 				}
 			}
@@ -215,15 +216,15 @@ namespace Hooks::BookPatcher
 			}
 			if (patchedAudio || patchedVisuals) {
 				filteredData.emplace(id, data);
-				logger::info("  >Patched book {} at {:0X}. Changes:"sv, obj->GetName(), id);
+				logger::info("  >Patched book {}. Changes:"sv, Utilities::GetFormattedName(obj), id);
 				if (patchedVisuals) {
 					logger::info("    -Visuals from {}"sv, data.visualOwner);
 					logger::info("      >Model: {}"sv, obj->model.c_str());
 				}
 				if (patchedAudio) {
 					logger::info("    -Audio from {}"sv, data.audioOwner);
-					logger::info("      >Pickup: {:0X}"sv, obj->pickupSound ? obj->pickupSound->formID : 0);
-					logger::info("      >Putdown: {:0X}"sv, obj->putdownSound ? obj->putdownSound->formID : 0);
+					logger::info("      >Pickup: {}"sv, Utilities::GetFormattedName(obj->pickupSound));
+					logger::info("      >Putdown: {}"sv, Utilities::GetFormattedName(obj->putdownSound));
 				}
 			}
 		}

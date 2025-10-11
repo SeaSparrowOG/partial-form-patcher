@@ -38,9 +38,6 @@ namespace Hooks::WeaponPatcher
 		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
 		if (result && a_this && duplicate && manager) {
-			if (!duplicate->Seek(0)) {
-				SKSE::stl::report_and_fail("Failed to seek 0"sv);
-			}
 			bool found = false;
 			auto formID = a_this->formID;
 			while (!found && duplicate->SeekNextForm(true)) {
@@ -49,8 +46,12 @@ namespace Hooks::WeaponPatcher
 				}
 				found = true;
 			}
+			if (!found) {
+				//duplicate->CloseTES(true);
+				return result;
+			}
 			manager->OnWeaponLoaded(a_this, duplicate);
-			duplicate->CloseTES(true);
+			//duplicate->CloseTES(true);
 		}
 		return result;
 	}
@@ -169,7 +170,7 @@ namespace Hooks::WeaponPatcher
 			// Model
 			else if (Utilities::IsSubrecord(a_file, "MODL")) {
 				std::string temp(a_file->actualChunkSize, '\0');
-				if (a_file->ReadData(temp.data(), temp.size())) {
+				if (a_file->ReadData(temp.data(), a_file->actualChunkSize)) {
 					fileModel = temp.c_str();
 				}
 			}
@@ -407,24 +408,24 @@ namespace Hooks::WeaponPatcher
 				if (patchedVisuals) {
 					logger::info("    -Visuals from {}"sv, data.visualOwner);
 					logger::info("      >Model: {}"sv, obj->model.c_str());
-					logger::info("      >First Person Model: {:0X}"sv, obj->firstPersonModelObject ? obj->firstPersonModelObject->formID : 0);
+					logger::info("      >First Person Model: {}"sv, Utilities::GetFormattedName(obj->firstPersonModelObject));
 				}
 				if (patchedImpact) {
 					logger::info("    -Impact from {}"sv, data.impactOwner);
-					logger::info("      >Impact Data Set: {:0X}"sv, obj->impactDataSet ? obj->impactDataSet->formID : 0);
-					logger::info("      >Block Bash Data Set: {:0X}"sv, obj->blockBashImpactDataSet ? obj->blockBashImpactDataSet->formID : 0);
-					logger::info("      >Block Alternate Material: {:0X}"sv, obj->altBlockMaterialType ? obj->altBlockMaterialType->formID : 0);
+					logger::info("      >Impact Data Set: {}"sv, Utilities::GetFormattedName(obj->impactDataSet));
+					logger::info("      >Block Bash Data Set: {}"sv, Utilities::GetFormattedName(obj->blockBashImpactDataSet));
+					logger::info("      >Block Alternate Material: {}"sv, Utilities::GetFormattedName(obj->altBlockMaterialType));
 				}
 				if (patchedAudio) {
 					logger::info("    -Audio from {}"sv, data.audioOwner);
-					logger::info("      >Pickup: {:0X}"sv, obj->pickupSound ? obj->pickupSound->formID : 0);
-					logger::info("      >Putdown: {:0X}"sv, obj->putdownSound ? obj->putdownSound->formID : 0);
-					logger::info("      >Attack: {:0X}"sv, obj->attackSound ? obj->attackSound->formID : 0);
-					logger::info("      >Attack Loop: {:0X}"sv, obj->attackLoopSound ? obj->attackLoopSound->formID : 0);
-					logger::info("      >Attack Fail: {:0X}"sv, obj->attackFailSound ? obj->attackFailSound->formID : 0);
-					logger::info("      >Idle: {:0X}"sv, obj->idleSound ? obj->idleSound->formID : 0);
-					logger::info("      >Equip: {:0X}"sv, obj->equipSound ? obj->equipSound->formID : 0);
-					logger::info("      >UnEquip: {:0X}"sv, obj->unequipSound ? obj->unequipSound->formID : 0);
+					logger::info("      >Pickup: {}"sv, Utilities::GetFormattedName(obj->pickupSound));
+					logger::info("      >Putdown: {}"sv, Utilities::GetFormattedName(obj->putdownSound));
+					logger::info("      >Attack: {}"sv, Utilities::GetFormattedName(obj->attackSound));
+					logger::info("      >Attack Loop: {}"sv, Utilities::GetFormattedName(obj->attackLoopSound));
+					logger::info("      >Attack Fail: {}"sv, Utilities::GetFormattedName(obj->attackFailSound));
+					logger::info("      >Idle: {}"sv, Utilities::GetFormattedName(obj->idleSound));
+					logger::info("      >Equip: {}"sv, Utilities::GetFormattedName(obj->equipSound));
+					logger::info("      >UnEquip: {}"sv, Utilities::GetFormattedName(obj->unequipSound));
 				}
 			}
 		}

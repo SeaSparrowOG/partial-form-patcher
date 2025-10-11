@@ -38,9 +38,6 @@ namespace Hooks::SoulGemPatcher
 		auto* duplicate = a_file ? a_file->Duplicate() : nullptr;
 		bool result = _load(a_this, a_file);
 		if (result && a_this && duplicate && manager) {
-			if (!duplicate->Seek(0)) {
-				SKSE::stl::report_and_fail("Failed to seek 0"sv);
-			}
 			bool found = false;
 			auto formID = a_this->formID;
 			while (!found && duplicate->SeekNextForm(true)) {
@@ -49,8 +46,12 @@ namespace Hooks::SoulGemPatcher
 				}
 				found = true;
 			}
+			if (!found) {
+				//duplicate->CloseTES(true);
+				return result;
+			}
 			manager->OnSoulGemLoaded(a_this, duplicate);
-			duplicate->CloseTES(true);
+			//duplicate->CloseTES(true);
 		}
 		return result;
 	}
@@ -76,20 +77,20 @@ namespace Hooks::SoulGemPatcher
 			if (Utilities::IsSubrecord(a_file, "YNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePickupSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
+					Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Putdown
 			else if (Utilities::IsSubrecord(a_file, "ZNAM")) {
 				RE::FormID retrieved = 0;
 				if (a_file->ReadData(&retrieved, a_file->actualChunkSize)) {
-					filePutdownSound = Utilities::GetAbsoluteFormID(retrieved, a_file);
+					Utilities::GetAbsoluteFormID(retrieved, a_file);
 				}
 			}
 			// Model
 			else if (Utilities::IsSubrecord(a_file, "MODL")) {
 				std::string temp(a_file->actualChunkSize, '\0');
-				if (a_file->ReadData(temp.data(), temp.size())) {
+				if (a_file->ReadData(temp.data(), a_file->actualChunkSize)) {
 					fileModel = temp.c_str();
 				}
 			}

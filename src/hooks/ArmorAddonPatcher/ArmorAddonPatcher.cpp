@@ -53,10 +53,11 @@ namespace Hooks::ArmorAddonPatcher
 				found = true;
 			}
 			if (!found) {
+				logger::warn("Failed to find {:0X} in file {}"sv, formID, duplicate->GetFilename());
 				return result;
 			}
 			manager->OnAddonLoaded(a_this, duplicate);
-			duplicate->CloseTES(true);
+			//duplicate->CloseTES(true);
 		}
 		return result;
 	}
@@ -185,10 +186,12 @@ namespace Hooks::ArmorAddonPatcher
 			data.altMaleSkinTexture = fileMaleSkinTexture;
 			data.altFemaleSkinTextureSwapList = fileFemaleSkinTextureSwapList;
 			data.altMaleSkinTextureSwapList = fileMaleSkinTextureSwapList;
+			data.visualOwner = a_file->GetFilename();
 		}
 		if (isOverwritingMasterAudio || overwritesBaseAudio)
 		{
 			data.altFootstepSet = fileFootstepSet;
+			data.audioOwner = a_file->GetFilename();
 		}
 	}
 
@@ -318,21 +321,22 @@ namespace Hooks::ArmorAddonPatcher
 						auto* list = RE::TESForm::LookupByID<RE::BGSListForm>(data.altFemaleSkinTextureSwapList);
 						obj->skinTextureSwapLists[1] = list;
 					}
+					patchedVisuals = true;
 				}
 			}
 			if (patchedAudio || patchedVisuals) {
 				filteredData.emplace(id, data);
-				logger::info("  >Patched book {} at {:0X}. Changes:"sv, obj->GetName(), id);
+				logger::info("  >Patched Armor Addon {}. Changes:"sv, Utilities::GetFormattedName(obj), id);
 				if (patchedVisuals) {
 					logger::info("    -Visuals from {}"sv, data.visualOwner);
 					logger::info("      >Biped Models: M: '{}' F: '{}'"sv, obj->bipedModels[0].model.c_str(), obj->bipedModels[1].model.c_str());
 					logger::info("      >1st Person Biped Models: M: '{}' F: '{}'"sv, obj->bipedModel1stPersons[0].model.c_str(), obj->bipedModel1stPersons[1].model.c_str());
-					logger::info("      >Skin Textures: M: {:0X} F: {:0X}"sv, obj->skinTextures[0] ? obj->skinTextures[0]->formID : 0, obj->skinTextures[1] ? obj->skinTextures[1]->formID : 0);
-					logger::info("      >Skin Texture Swap Lists: M: {:0X} F: {:0X}"sv, obj->skinTextureSwapLists[0] ? obj->skinTextureSwapLists[0]->formID : 0, obj->skinTextureSwapLists[1] ? obj->skinTextureSwapLists[1]->formID : 0);
+					logger::info("      >Skin Textures: M: {} F: {}"sv, Utilities::GetFormattedName(obj->skinTextures[0]), Utilities::GetFormattedName(obj->skinTextures[1]));
+					logger::info("      >Skin Texture Swap Lists: M: {} F: {}"sv, Utilities::GetFormattedName(obj->skinTextureSwapLists[0]), Utilities::GetFormattedName(obj->skinTextureSwapLists[1]));
 				}
 				if (patchedAudio) {
 					logger::info("    -Audio from {}"sv, data.audioOwner);
-					logger::info("      >Footstep Set: {:0X}"sv, obj->footstepSet ? obj->footstepSet->formID : 0);
+					logger::info("      >Footstep Set: {}"sv, Utilities::GetFormattedName(obj->footstepSet));
 				}
 			}
 		}
