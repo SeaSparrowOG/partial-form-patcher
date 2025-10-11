@@ -94,13 +94,16 @@ namespace Utilities
 
 		std::vector<RE::TESFile*> visitedFiles{};
 		visitedFiles.reserve(a_file->masterCount);
-		auto formIDIndex = static_cast<std::uint8_t>(0xFE & (a_formID >> 24));
+		auto formIDIndex = static_cast<std::uint8_t>(0xFF & (a_formID >> 24));
 
 		for (auto* master : std::span(a_file->masterPtrs, a_file->masterCount)) {
 			visitedFiles.push_back(master);
 		}
 
 		if (formIDIndex >= visitedFiles.size()) {
+			if (a_file->IsLight()) {
+				return 0xFE000000 | ((a_file->smallFileCompileIndex & 0xFF) << 12) | (a_formID & 0xFFF);
+			}
 			return ((a_file->compileIndex & 0xFF) << 24) | (a_formID & 0xFFFFFF);
 		}
 
